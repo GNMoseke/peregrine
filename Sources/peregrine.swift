@@ -19,12 +19,12 @@ struct Peregrine: AsyncParsableCommand {
         // TODO: allow direct passthrough of swift test options
 
         /* plan here is to:
-        1. List tests with build
-        2. Count tests from list output
-        3. Run tests and monitor stdout, building progress bar as each test completes
-        4. Clean up the output based on all sucess/which ones failed/etc
-        5. Output nerdfont or raw
-        */
+         1. List tests with build
+         2. Count tests from list output
+         3. Run tests and monitor stdout, building progress bar as each test completes
+         4. Clean up the output based on all sucess/which ones failed/etc
+         5. Output nerdfont or raw
+         */
         // Want to do junit xml output and parsing, options for showing longest running tests, etc
         print("=== PEREGRINE ===")
         try print(getSwiftVersion())
@@ -99,8 +99,7 @@ struct Peregrine: AsyncParsableCommand {
         try testProcess.wait()
         if try await testProcess.status.terminatedSuccessfully {
             print(NerdFontIcons.Success.rawValue + " All Tests Passed!", .GreenBold)
-        }
-        else {
+        } else {
             print("=== FAILED TESTS ===", .RedBold)
             try print(processErrors(errorLines: errorLines), .RedBold)
         }
@@ -125,11 +124,10 @@ func processErrors(errorLines: [String]) throws -> String {
     var processed = ""
     for (test, errors) in errorsByTest {
         processed += NerdFontIcons.Failure.rawValue + " \(test.fullName):\n"
-        processed += errors.map { "  \(NerdFontIcons.RightArrow.rawValue) \($0)"}.joined(separator: "\n")
+        processed += errors.map { "  \(NerdFontIcons.RightArrow.rawValue) \($0)" }.joined(separator: "\n")
     }
     return processed
 }
-
 
 func print(_ str: String, _ color: TextColor) {
     print(color.rawValue + str + "\u{001B}[0m")
@@ -137,7 +135,7 @@ func print(_ str: String, _ color: TextColor) {
 
 enum TextColor: String {
     case GreenBold = "\u{001B}[0;32;1m"
-    case RedBold =  "\u{001B}[0;31;1m"
+    case RedBold = "\u{001B}[0;31;1m"
     case CyanBold = "\u{001B}[0;36;1m"
 }
 
@@ -158,8 +156,6 @@ struct Test: Codable, Hashable {
     let name: String
 
     var fullName: String {
-        get {
         "\(target).\(`class`)/\(name)"
-        }
     }
 }

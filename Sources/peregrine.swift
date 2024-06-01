@@ -2,6 +2,8 @@ import ArgumentParser
 import Foundation
 import SwiftCommand
 
+// TODO: move this from a global
+var tests: [Test] = []
 @main
 struct Peregrine: AsyncParsableCommand {
     @Argument
@@ -41,7 +43,6 @@ struct Peregrine: AsyncParsableCommand {
             .setStderr(.pipe)
             .spawn()
 
-        var tests: [Test] = []
         for try await line in listProcess.stdout.lines {
             var split = line.split(separator: ".")
             guard let testTarget = split.first, let remainder = split.last else {
@@ -77,6 +78,7 @@ struct Peregrine: AsyncParsableCommand {
         var progressBar = String(repeating: NerdFontIcons.LightlyShadedBlock.rawValue, count: progressBarCharacterLength)
         print(progressBar, terminator: "\r")
         fflush(nil)
+        var errorLines = [String]()
         for try await line in testProcess.stdout.lines {
             // FIXME: this is hacky and inefficient, just use a regex
             if line.starts(with: "Test Case") && line.contains("started at") {
@@ -89,18 +91,45 @@ struct Peregrine: AsyncParsableCommand {
                     fflush(nil)
                 }
             }
+            if line.contains("error:") {
+                errorLines.append(line)
+            }
         }
         print("\n")
-
         try testProcess.wait()
         if try await testProcess.status.terminatedSuccessfully {
-            print("All Tests Passed!", .GreenBold)
+            print(NerdFontIcons.Success.rawValue + " All Tests Passed!", .GreenBold)
         }
         else {
-            print("Failure", .RedBold)
+            print("=== FAILED TESTS ===", .RedBold)
+            try print(processErrors(errorLines: errorLines), .RedBold)
         }
     }
 }
+
+/// This relies heavily on the output format from swift test remaining the same, I'd like to parse xunit here
+/// but spm's xunit output doesn't give valuable information: https://github.com/apple/swift-package-manager/issues/7622
+func processErrors(errorLines: [String]) throws -> String {
+    var errorsByTest = [Test: [String]]()
+    for line in errorLines {
+        // FIXME: so many force unwraps
+        let failure = line.split(separator: "error:").last!
+        let failureComponents = failure.split(separator: ":")
+        let testIdentifierComponents = failureComponents.first?.split(separator: ".")
+        let testClass = testIdentifierComponents?.first?.trimmingCharacters(in: .whitespaces)
+        let name = testIdentifierComponents?.last?.trimmingCharacters(in: .whitespaces)
+        let test = tests.first(where: { $0.class == testClass && $0.name == name })!
+        errorsByTest[test, default: []].append(String(failureComponents.last!))
+    }
+    // TODO: include file and line here too
+    var processed = ""
+    for (test, errors) in errorsByTest {
+        processed += NerdFontIcons.Failure.rawValue + " \(test.fullName):\n"
+        processed += errors.map { "  \(NerdFontIcons.RightArrow.rawValue) \($0)"}.joined(separator: "\n")
+    }
+    return processed
+}
+
 
 func print(_ str: String, _ color: TextColor) {
     print(color.rawValue + str + "\u{001B}[0m")
@@ -115,14 +144,22 @@ enum TextColor: String {
 enum NerdFontIcons: String {
     case ErlenmeyerFlask = "󰂓"
     case Build = "󱌣"
+    case Failure = ""
+    case Success = ""
+    case RightArrow = "󱞩"
     // not technically nerd font icons but putting here
     case FilledBlock = "█"
     case LightlyShadedBlock = "░"
-
 }
 
-struct Test {
+struct Test: Codable, Hashable {
     let target: String
     let `class`: String
     let name: String
+
+    var fullName: String {
+        get {
+        "\(target).\(`class`)/\(name)"
+        }
+    }
 }

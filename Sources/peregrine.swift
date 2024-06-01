@@ -15,7 +15,6 @@ struct Peregrine: AsyncParsableCommand {
 
     mutating func run() async throws {
         // TODO: allow direct passthrough of swift test options
-        let swiftPath = URL(fileURLWithPath: toolchain)
 
         /* plan here is to:
         1. List tests with build
@@ -24,38 +23,106 @@ struct Peregrine: AsyncParsableCommand {
         4. Clean up the output based on all sucess/which ones failed/etc
         5. Output nerdfont or raw
         */
-        //try print(getSwiftVersion(swiftPath: swiftPath))
-        try await print(runTests(swiftPath: swiftPath))
+        // Want to do junit xml output and parsing, options for showing longest running tests, etc
+        print("=== PEREGRINE ===")
+        try print(getSwiftVersion())
+        try await runTests()
     }
 
-    private func getSwiftVersion(swiftPath: URL) throws -> String {
-        let swiftVersionProcess = Process()
-        swiftVersionProcess.executableURL = swiftPath
-        swiftVersionProcess.arguments = ["--version"]
-
-        let stdoutPipe = Pipe()
-        swiftVersionProcess.standardOutput = stdoutPipe
-
-        try swiftVersionProcess.run()
-        return String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    private func getSwiftVersion() throws -> String {
+        try Command(executablePath: .init(toolchain)).addArgument("--version").waitForOutput().stdout
     }
 
-    private func runTests(swiftPath: URL) async throws -> String {
-        print(swiftPath.path)
-        let testProcess = try Command(executablePath: .init(swiftPath.path))
-            .addArguments(["test", "--package-path", path] + (parallel ? ["--parallel"] : []))
+    private func listTests() async throws -> [Test] {
+        print(NerdFontIcons.Build.rawValue + " Building...", .CyanBold)
+        let listProcess = try Command(executablePath: .init(toolchain))
+            .addArguments(["test", "list", "--package-path", path])
             .setStdout(.pipe)
+            .setStderr(.pipe)
             .spawn()
 
-        var completeTests = 0
-        for try await _ in testProcess.stdout.lines {
-            completeTests += 1
+        var tests: [Test] = []
+        for try await line in listProcess.stdout.lines {
+            var split = line.split(separator: ".")
+            guard let testTarget = split.first, let remainder = split.last else {
+                // FIXME: convert to thrown error
+                print("Boom")
+                return []
+            }
+            split = remainder.split(separator: "/")
+            guard let testClass = split.first, let testName = split.last else {
+                // FIXME: convert to thrown error
+                print("boom 2")
+                return []
+            }
+            tests.append(Test(target: String(testTarget), class: String(testClass), name: String(testName)))
         }
-        try testProcess.wait()
-        print(completeTests)
-        if try await testProcess.status.terminatedSuccessfully {
-            return "All Tests Passed"
-        }
-            return "Failure"
+        return tests
     }
+
+    private func runTests() async throws {
+        let testCount = try await listTests().count
+        let testProcess = try Command(executablePath: .init(toolchain))
+            .addArguments(["test", "--package-path", path] + (parallel ? ["--parallel"] : []))
+            .setStdout(.pipe) // swift build diagnostics go to stder
+            .setStderr(.pipe)
+            .spawn()
+
+        print(NerdFontIcons.ErlenmeyerFlask.rawValue + " Running Tests...", .CyanBold)
+
+        let progressBarCharacterLength = 30
+        let stepSize: Int = testCount / progressBarCharacterLength
+        var completeTests = 0
+        var progressIndex = 0
+        var progressBar = String(repeating: NerdFontIcons.LightlyShadedBlock.rawValue, count: progressBarCharacterLength)
+        print(progressBar, terminator: "\r")
+        fflush(nil)
+        for try await line in testProcess.stdout.lines {
+            // FIXME: this is hacky and inefficient, just use a regex
+            if line.starts(with: "Test Case") && line.contains("started at") {
+                completeTests += 1
+                if completeTests % stepSize == 0 {
+                    progressBar = String(progressBar.dropLast())
+                    progressBar.insert(Character(NerdFontIcons.FilledBlock.rawValue), at: progressBar.startIndex)
+                    progressIndex += 1
+                    print(progressBar, terminator: "\r")
+                    fflush(nil)
+                }
+            }
+        }
+        print("\n")
+
+        try testProcess.wait()
+        if try await testProcess.status.terminatedSuccessfully {
+            print("All Tests Passed!", .GreenBold)
+        }
+        else {
+            print("Failure", .RedBold)
+        }
+    }
+}
+
+func print(_ str: String, _ color: TextColor) {
+    print(color.rawValue + str + "\u{001B}[0m")
+}
+
+enum TextColor: String {
+    case GreenBold = "\u{001B}[0;32;1m"
+    case RedBold =  "\u{001B}[0;31;1m"
+    case CyanBold = "\u{001B}[0;36;1m"
+}
+
+enum NerdFontIcons: String {
+    case ErlenmeyerFlask = "󰂓"
+    case Build = "󱌣"
+    // not technically nerd font icons but putting here
+    case FilledBlock = "█"
+    case LightlyShadedBlock = "░"
+
+}
+
+struct Test {
+    let target: String
+    let `class`: String
+    let name: String
 }

@@ -2,8 +2,6 @@ import ArgumentParser
 import Foundation
 import SwiftCommand
 
-// TODO: move this from a global
-var tests: [Test] = []
 @main
 struct Peregrine: AsyncParsableCommand {
     @Argument
@@ -15,158 +13,23 @@ struct Peregrine: AsyncParsableCommand {
     @Option(help: "Execute tests in parallel")
     var parallel: Bool = false
 
+    @Flag(help: "Output a list of the longest-running tests. Will run tests in parallel.")
+    var outputLongest: Bool = false
+
     mutating func run() async throws {
         // TODO: allow direct passthrough of swift test options
 
-        /* plan here is to:
-         1. List tests with build
-         2. Count tests from list output
-         3. Run tests and monitor stdout, building progress bar as each test completes
-         4. Clean up the output based on all sucess/which ones failed/etc
-         5. Output nerdfont or raw
-         */
         // Want to do junit xml output and parsing, options for showing longest running tests, etc
         print("=== PEREGRINE ===")
         try print(getSwiftVersion())
-        try await runTests()
+        let testOptions = TestOptions(parallel: parallel, generateXunit: false, toolchainPath: toolchain, packagePath: path)
+        let testRunner = PeregrineRunner(options: testOptions)
+        let tests = try await testRunner.listTests()
+        let testResults = try await testRunner.runTests(tests: tests)
+        try testRunner.output(results: testResults)
     }
 
     private func getSwiftVersion() throws -> String {
         try Command(executablePath: .init(toolchain)).addArgument("--version").waitForOutput().stdout
-    }
-
-    private func listTests() async throws -> [Test] {
-        print(NerdFontIcons.Build.rawValue + " Building...", .CyanBold)
-        let listProcess = try Command(executablePath: .init(toolchain))
-            .addArguments(["test", "list", "--package-path", path])
-            .setStdout(.pipe)
-            .setStderr(.pipe)
-            .spawn()
-
-        for try await line in listProcess.stdout.lines {
-            var split = line.split(separator: ".")
-            guard let testTarget = split.first, let remainder = split.last else {
-                // FIXME: convert to thrown error
-                print("Boom")
-                return []
-            }
-            split = remainder.split(separator: "/")
-            guard let testClass = split.first, let testName = split.last else {
-                // FIXME: convert to thrown error
-                print("boom 2")
-                return []
-            }
-            tests.append(Test(target: String(testTarget), class: String(testClass), name: String(testName)))
-        }
-        return tests
-    }
-
-    private func runTests() async throws {
-        let testCount = try await listTests().count
-        let testProcess = try Command(executablePath: .init(toolchain))
-            .addArguments(["test", "--package-path", path] + (parallel ? ["--parallel"] : []))
-            .setStdout(.pipe) // swift build diagnostics go to stder
-            .setStderr(.pipe)
-            .spawn()
-
-        print(NerdFontIcons.ErlenmeyerFlask.rawValue + " Running Tests...", .CyanBold)
-
-        let progressBarCharacterLength = 30
-        let stepSize: Int = testCount / progressBarCharacterLength
-        var completeTests = 0
-        var progressIndex = 0
-        var progressBar = String(repeating: NerdFontIcons.LightlyShadedBlock.rawValue, count: progressBarCharacterLength)
-        print(progressBar, terminator: "\r")
-        fflush(nil)
-        var errorLines = [String]()
-        var backtraceLines = [String]()
-        var collectBacktrace = false
-        // TODO: clean this up, very heavy-handed rpocessing
-        for try await line in testProcess.stdout.lines {
-            if collectBacktrace {
-                backtraceLines.append(line)
-            }
-            // FIXME: this is hacky and inefficient, just use a regex
-            else if line.starts(with: "Test Case") && line.contains("started at") {
-                completeTests += 1
-                if completeTests % stepSize == 0 {
-                    progressBar = String(progressBar.dropLast())
-                    progressBar.insert(Character(NerdFontIcons.FilledBlock.rawValue), at: progressBar.startIndex)
-                    progressIndex += 1
-                    print(progressBar, terminator: "\r")
-                    fflush(nil)
-                }
-            } else if line.contains("Fatal error:") {
-                backtraceLines.append(line)
-                collectBacktrace = true
-            } else if line.contains("error:") {
-                errorLines.append(line)
-            }
-        }
-        print("\n")
-        try testProcess.wait()
-        if try await testProcess.status.terminatedSuccessfully {
-            print(NerdFontIcons.Success.rawValue + " All Tests Passed!", .GreenBold)
-        } else if collectBacktrace {
-            print("=== TESTS CRASHED ===", .RedBold)
-            print(backtraceLines.joined(separator: "\n"), .RedBold)
-        } else {
-            print("=== FAILED TESTS ===", .RedBold)
-            try print(processErrors(errorLines: errorLines), .RedBold)
-        }
-    }
-}
-
-/// This relies heavily on the output format from swift test remaining the same, I'd like to parse xunit here
-/// but spm's xunit output doesn't give valuable information: https://github.com/apple/swift-package-manager/issues/7622
-func processErrors(errorLines: [String]) throws -> String {
-    var errorsByTest = [Test: [String]]()
-    for line in errorLines {
-        let failure = line.split(separator: "error:").last!
-        let failureComponents = failure.split(separator: ":")
-        let testIdentifierComponents = failureComponents.first?.split(separator: ".")
-        let testClass = testIdentifierComponents?.first?.trimmingCharacters(in: .whitespaces)
-        let name = testIdentifierComponents?.last?.trimmingCharacters(in: .whitespaces)
-        if let test = tests.first(where: { $0.class == testClass && $0.name == name }), let failureInfo = failureComponents.last {
-            errorsByTest[test, default: []].append(String(failureInfo))
-        }
-    }
-    // TODO: include file and line here too
-    var processed = ""
-    for (test, errors) in errorsByTest {
-        processed += NerdFontIcons.Failure.rawValue + " \(test.fullName):\n"
-        processed += errors.map { "  \(NerdFontIcons.RightArrow.rawValue) \($0)" }.joined(separator: "\n")
-    }
-    return processed
-}
-
-func print(_ str: String, _ color: TextColor) {
-    print(color.rawValue + str + "\u{001B}[0m")
-}
-
-enum TextColor: String {
-    case GreenBold = "\u{001B}[0;32;1m"
-    case RedBold = "\u{001B}[0;31;1m"
-    case CyanBold = "\u{001B}[0;36;1m"
-}
-
-enum NerdFontIcons: String {
-    case ErlenmeyerFlask = "󰂓"
-    case Build = "󱌣"
-    case Failure = ""
-    case Success = ""
-    case RightArrow = "󱞩"
-    // not technically nerd font icons but putting here
-    case FilledBlock = "█"
-    case LightlyShadedBlock = "░"
-}
-
-struct Test: Codable, Hashable {
-    let target: String
-    let `class`: String
-    let name: String
-
-    var fullName: String {
-        "\(target).\(`class`)/\(name)"
     }
 }

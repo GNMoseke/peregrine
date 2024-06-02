@@ -3,8 +3,7 @@ import SwiftCommand
 
 struct TestRunOutput {
     let success: Bool
-    let tests: [Test]
-    let errorLines: [String]?
+    let tests: [TestResult]
     let backtraceLines: [String]?
 }
 
@@ -17,14 +16,20 @@ struct TestOptions {
 }
 
 struct Test: Codable, Hashable {
-    let target: String
-    let `class`: String
+    let suite: String
     let name: String
-    let timeToRun: Duration
 
     var fullName: String {
-        "\(target).\(`class`)/\(name)"
+        "\(suite).\(name)"
     }
+}
+
+struct TestResult {
+    let test: Test
+    let passed: Bool
+    // line, failure message
+    var errors: [(String, String)]
+    var duration: Duration
 }
 
 protocol TestRunner {
@@ -34,8 +39,13 @@ protocol TestRunner {
     func output(results: TestRunOutput) throws
 }
 
-struct PeregrineRunner: TestRunner {
+class PeregrineRunner: TestRunner {
     let options: TestOptions
+    var testResults: [Test: TestResult] = [:]
+
+    init(options: TestOptions) {
+        self.options = options
+    }
 
     func listTests() async throws -> [Test] {
         print(NerdFontIcons.Build.rawValue + " Building...", .CyanBold)
@@ -59,7 +69,7 @@ struct PeregrineRunner: TestRunner {
                 print("boom 2")
                 return []
             }
-            tests.append(Test(target: String(testTarget), class: String(testClass), name: String(testName), timeToRun: .seconds(0)))
+            tests.append(Test(suite: String(testClass), name: String(testName)))
         }
         return tests
     }
@@ -74,23 +84,25 @@ struct PeregrineRunner: TestRunner {
 
         print(NerdFontIcons.ErlenmeyerFlask.rawValue + " Running Tests...", .CyanBold)
 
-        let progressBarCharacterLength = 30
+        let progressBarCharacterLength = 45
         let stepSize: Int = testCount / progressBarCharacterLength
         var completeTests = 0
         var progressIndex = 0
         var progressBar = String(repeating: NerdFontIcons.LightlyShadedBlock.rawValue, count: progressBarCharacterLength)
         print(progressBar, terminator: "\r")
         fflush(nil)
-        var errorLines = [String]()
         var backtraceLines = [String]()
         var collectBacktrace = false
         // TODO: clean this up, very heavy-handed processing
         for try await line in testProcess.stdout.lines {
             if collectBacktrace {
                 backtraceLines.append(line)
+                continue
+            } else if line.contains("Fatal error:") {
+                backtraceLines.append(line)
+                collectBacktrace = true
             }
-            // FIXME: this is hacky and inefficient, just use a regex
-            else if line.starts(with: "Test Case") && line.contains("started at") {
+            if try parseTestLine(line) {
                 completeTests += 1
                 if completeTests % stepSize == 0 {
                     progressBar = String(progressBar.dropLast())
@@ -99,19 +111,14 @@ struct PeregrineRunner: TestRunner {
                     print(progressBar, terminator: "\r")
                     fflush(nil)
                 }
-            } else if line.contains("Fatal error:") {
-                backtraceLines.append(line)
-                collectBacktrace = true
-            } else if line.contains("error:") {
-                errorLines.append(line)
             }
         }
         print("\n")
         try testProcess.wait()
         if try await testProcess.status.terminatedSuccessfully {
-            return TestRunOutput(success: true, tests: tests, errorLines: nil, backtraceLines: nil)
+            return TestRunOutput(success: true, tests: Array(testResults.values), backtraceLines: nil)
         } else {
-            return TestRunOutput(success: false, tests: tests, errorLines: errorLines.isEmpty ? nil : errorLines, backtraceLines: backtraceLines.isEmpty ? nil : backtraceLines)
+            return TestRunOutput(success: false, tests: Array(testResults.values), backtraceLines: backtraceLines.isEmpty ? nil : backtraceLines)
         }
     }
 
@@ -119,4 +126,54 @@ struct PeregrineRunner: TestRunner {
         let processedOutput = try processOutput(testOutput: results)
         print(processedOutput.output, processedOutput.color)
     }
+
+    private func parseTestLine(_ line: String) throws -> Bool {
+        // FIXME: pretty brute-force here, should use a regex
+        if line.starts(with: "Test Case") && !line.contains("started at") {
+            var processedLine = line
+            processedLine.removeFirst("Test Case '".count)
+            let components = processedLine.split(separator: "'")
+            guard let fullTestName = components.first else {
+                throw TestOutputParseError.unexpectedLineFormat("could not parse completion line: \(line)")
+            }
+            // TODO: I do this split a lot, should just write a processing function for it
+            let nameComponents = fullTestName.split(separator: ".")
+            guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
+                throw TestOutputParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
+            }
+            let test = Test(suite: String(testSuite), name: String(testName))
+
+            guard let timeString = processedLine.split(separator: "(").last?.split(separator: " ").first, let testDuration = Double(String(timeString)) else {
+                throw TestOutputParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
+            }
+
+            if line.contains("passed") {
+                testResults[test] = TestResult(test: test, passed: true, errors: [], duration: .seconds(testDuration))
+                return true
+            }
+            if line.contains("failed") {
+                testResults[test]?.duration = .seconds(testDuration)
+                return true
+            }
+        } else if line.contains("error:") {
+            let errorComponents = line.split(separator: "error:")
+            guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
+                throw TestOutputParseError.unexpectedLineFormat("Could not parse error line: \(line)")
+            }
+            let location = String(errorLocation.trimmingCharacters(in: [":", " "]))
+            let failureComponents = testAndFail.split(separator: ":")
+            guard let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces), let failure = failureComponents.last else {
+                throw TestOutputParseError.unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
+            }
+            let testNameComponents = testName.split(separator: ".")
+            let test = Test(suite: String(testNameComponents.first!), name: String(testNameComponents.last!))
+            testResults[test, default: TestResult(test: test, passed: false, errors: [], duration: .seconds(0))].errors.append((location, String(failure)))
+            return false
+        }
+        return false
+    }
+}
+
+enum TestOutputParseError: Error {
+    case unexpectedLineFormat(String)
 }

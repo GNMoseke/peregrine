@@ -12,39 +12,30 @@ func processOutput(testOutput: TestRunOutput) throws -> (output: String, color: 
             """,
             .RedBold
         )
-    } else if let errorLines = testOutput.errorLines {
+    } else {
         return try (
             """
             === TESTS FAILED ===
-            \(processErrors(tests: testOutput.tests, errorLines: errorLines))
+            \(processErrors(results: testOutput.tests))
             """,
             .RedBold
         )
-    } else {
-        throw TestProcessingError.failedWithoutOutput("Tests failed, and no errors/backtrace were found")
     }
 }
 
-func processErrors(tests: [Test], errorLines: [String]) throws -> String {
-    var errorsByTest = [Test: [String]]()
-    // FIXME: force unwraps
-    for line in errorLines {
-        let failure = line.split(separator: "error:").last!
-        let failureComponents = failure.split(separator: ":")
-        let testIdentifierComponents = failureComponents.first?.split(separator: ".")
-        let testClass = testIdentifierComponents?.first?.trimmingCharacters(in: .whitespaces)
-        let name = testIdentifierComponents?.last?.trimmingCharacters(in: .whitespaces)
-        if let test = tests.first(where: { $0.class == testClass && $0.name == name }), let failureInfo = failureComponents.last {
-            errorsByTest[test, default: []].append(String(failureInfo))
-        }
+func processErrors(results: [TestResult]) throws -> String {
+    var testsBySuite: [String: String] = [:]
+    results.filter { !$0.passed }.forEach { result in
+        let testHeader = "  \(result.test.name) - (\(result.duration))\n"
+        // TODO: clean up the file output to just the path in the package?
+        let errors = result.errors.map { "    \(NerdFontIcons.RightArrow.rawValue)  \($0.1) \($0.0)" }.joined(separator: "\n")
+        testsBySuite[result.test.suite, default: ""] += testHeader + errors + "\n"
     }
-    // TODO: include file and line here too
-    var processed = ""
-    for (test, errors) in errorsByTest {
-        processed += NerdFontIcons.Failure.rawValue + " \(test.fullName):\n"
-        processed += errors.map { "  \(NerdFontIcons.RightArrow.rawValue) \($0)" }.joined(separator: "\n")
+    var finalOutput = ""
+    for (suite, testInfo) in testsBySuite {
+        finalOutput += suite + "\n" + testInfo + "\n"
     }
-    return processed
+    return finalOutput
 }
 
 enum TestProcessingError: Error {

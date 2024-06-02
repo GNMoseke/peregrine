@@ -1,3 +1,4 @@
+import ArgumentParser
 
 func print(_ str: String, _ color: TextColor) {
     print(color.rawValue + str + "\u{001B}[0m")
@@ -18,4 +19,9 @@ enum NerdFontIcons: String {
     // not technically nerd font icons but putting here
     case FilledBlock = "█"
     case LightlyShadedBlock = "░"
+}
+
+enum LongTestOutputFormat: String, ExpressibleByArgument {
+    case stdout
+    case csv
 }

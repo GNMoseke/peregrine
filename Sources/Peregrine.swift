@@ -13,8 +13,15 @@ struct Peregrine: AsyncParsableCommand {
     @Option(help: "Execute tests in parallel")
     var parallel: Bool = false
 
-    @Flag(help: "Output a list of the longest-running tests. Will run tests in parallel.")
-    var outputLongest: Bool = false
+    @Flag(help: "Output a list of the longest-running tests")
+    var showLongest: Bool = false
+
+    @Option(help: "change the count of longest test output. A value of -1 indicates that all tests should be shown.")
+    var longestTestCount: Int = 10
+
+    // Again, this should be handeld with xunit, but the spm xunit output is severely lacking
+    @Option(help: "Control the output format for long tests")
+    var longTestOutputFormat: LongTestOutputFormat = .stdout
 
     mutating func run() async throws {
         // TODO: allow direct passthrough of swift test options

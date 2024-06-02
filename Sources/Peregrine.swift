@@ -79,9 +79,15 @@ struct Peregrine: AsyncParsableCommand {
         print(progressBar, terminator: "\r")
         fflush(nil)
         var errorLines = [String]()
+        var backtraceLines = [String]()
+        var collectBacktrace = false
+        // TODO: clean this up, very heavy-handed rpocessing
         for try await line in testProcess.stdout.lines {
+            if collectBacktrace {
+                backtraceLines.append(line)
+            }
             // FIXME: this is hacky and inefficient, just use a regex
-            if line.starts(with: "Test Case") && line.contains("started at") {
+            else if line.starts(with: "Test Case") && line.contains("started at") {
                 completeTests += 1
                 if completeTests % stepSize == 0 {
                     progressBar = String(progressBar.dropLast())
@@ -90,8 +96,10 @@ struct Peregrine: AsyncParsableCommand {
                     print(progressBar, terminator: "\r")
                     fflush(nil)
                 }
-            }
-            if line.contains("error:") {
+            } else if line.contains("Fatal error:") {
+                backtraceLines.append(line)
+                collectBacktrace = true
+            } else if line.contains("error:") {
                 errorLines.append(line)
             }
         }
@@ -99,6 +107,9 @@ struct Peregrine: AsyncParsableCommand {
         try testProcess.wait()
         if try await testProcess.status.terminatedSuccessfully {
             print(NerdFontIcons.Success.rawValue + " All Tests Passed!", .GreenBold)
+        } else if collectBacktrace {
+            print("=== TESTS CRASHED ===", .RedBold)
+            print(backtraceLines.joined(separator: "\n"), .RedBold)
         } else {
             print("=== FAILED TESTS ===", .RedBold)
             try print(processErrors(errorLines: errorLines), .RedBold)
@@ -111,14 +122,14 @@ struct Peregrine: AsyncParsableCommand {
 func processErrors(errorLines: [String]) throws -> String {
     var errorsByTest = [Test: [String]]()
     for line in errorLines {
-        // FIXME: so many force unwraps
         let failure = line.split(separator: "error:").last!
         let failureComponents = failure.split(separator: ":")
         let testIdentifierComponents = failureComponents.first?.split(separator: ".")
         let testClass = testIdentifierComponents?.first?.trimmingCharacters(in: .whitespaces)
         let name = testIdentifierComponents?.last?.trimmingCharacters(in: .whitespaces)
-        let test = tests.first(where: { $0.class == testClass && $0.name == name })!
-        errorsByTest[test, default: []].append(String(failureComponents.last!))
+        if let test = tests.first(where: { $0.class == testClass && $0.name == name }), let failureInfo = failureComponents.last {
+            errorsByTest[test, default: []].append(String(failureInfo))
+        }
     }
     // TODO: include file and line here too
     var processed = ""

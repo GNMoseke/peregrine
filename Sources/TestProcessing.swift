@@ -26,9 +26,8 @@ func processOutput(testOutput: TestRunOutput) throws -> (output: String, color: 
 func processErrors(results: [TestResult]) throws -> String {
     var testsBySuite: [String: String] = [:]
     results.filter { !$0.passed }.forEach { result in
-        let testHeader = "  \(result.test.name) - (\(result.duration))\n"
-        // TODO: clean up the file output to just the path in the package?
-        let errors = result.errors.map { "    \(NerdFontIcons.RightArrow.rawValue)  \($0.1) \($0.0)" }.joined(separator: "\n")
+        let testHeader = " \(NerdFontIcons.RightArrow.rawValue) \(NerdFontIcons.FailedTestFlask.rawValue) \(result.test.name) - (\(result.duration))\n"
+        let errors = result.errors.map { "   \(NerdFontIcons.RightArrow.rawValue) \($0.1) \($0.0)" }.joined(separator: "\n")
         testsBySuite[result.test.suite, default: ""] += testHeader + errors + "\n"
     }
     var finalOutput = ""

@@ -12,6 +12,8 @@ enum TextColor: String {
 
 enum NerdFontIcons: String {
     case ErlenmeyerFlask = "󰂓"
+    case FailedTestFlask = "󱉄"
+    case Timer = "󰔛"
     case Build = "󱌣"
     case Failure = ""
     case Success = ""

@@ -67,12 +67,11 @@ extension Peregrine {
         mutating func run() async throws {
             print("=== PEREGRINE - COUNTING TESTS ===", .CyanBold)
             let tests = try await PeregrineRunner(options: TestOptions(toolchainPath: options.toolchain, packagePath: options.path)).listTests()
+            let testsBySuite = Dictionary(grouping: tests, by: \.suite)
+            print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .GreenBold)
             if groupBySuite {
-                print("Found \(tests.count) total tests", .GreenBold)
                 print(String(repeating: "-", count: 50), .GreenBold)
-                print(Dictionary(grouping: tests, by: \.suite).sorted(by: { $0.value.count > $1.value.count }).map { "\($0.key): \($0.value.count)" }.joined(separator: "\n"), .GreenBold)
-            } else {
-                print("Found \(tests.count) tests", .GreenBold)
+                print(testsBySuite.sorted(by: { $0.value.count > $1.value.count }).map { "\($0.key): \($0.value.count)" }.joined(separator: "\n"), .GreenBold)
             }
         }
     }

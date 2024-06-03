@@ -8,9 +8,6 @@ struct TestRunOutput {
 }
 
 struct TestOptions {
-    let parallel: Bool
-    // implies parallel
-    let generateXunit: Bool
     let toolchainPath: String
     let packagePath: String
 }
@@ -57,19 +54,16 @@ class PeregrineRunner: TestRunner {
 
         var tests = [Test]()
         for try await line in listProcess.stdout.lines {
-            var split = line.split(separator: ".")
-            guard let testTarget = split.first, let remainder = split.last else {
+            guard let remainder = line.split(separator: ".").last else {
                 // FIXME: convert to thrown error
                 print("Boom")
                 return []
             }
-            split = remainder.split(separator: "/")
-            guard let testClass = split.first, let testName = split.last else {
-                // FIXME: convert to thrown error
-                print("boom 2")
-                return []
+            let suiteAndName = remainder.split(separator: "/")
+            guard let testSuite = suiteAndName.first, let testName = suiteAndName.last else {
+                throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
             }
-            tests.append(Test(suite: String(testClass), name: String(testName)))
+            tests.append(Test(suite: String(testSuite), name: String(testName)))
         }
         return tests
     }
@@ -77,7 +71,7 @@ class PeregrineRunner: TestRunner {
     func runTests(tests: [Test]) async throws -> TestRunOutput {
         let testCount = tests.count
         let testProcess = try Command(executablePath: .init(options.toolchainPath))
-            .addArguments(["test", "--package-path", options.packagePath] + (options.parallel ? ["--parallel"] : []))
+            .addArguments(["test", "--package-path", options.packagePath])
             .setStdout(.pipe) // swift build diagnostics go to stder
             .setStderr(.pipe)
             .spawn()
@@ -134,17 +128,17 @@ class PeregrineRunner: TestRunner {
             processedLine.removeFirst("Test Case '".count)
             let components = processedLine.split(separator: "'")
             guard let fullTestName = components.first else {
-                throw TestOutputParseError.unexpectedLineFormat("could not parse completion line: \(line)")
+                throw TestParseError.unexpectedLineFormat("could not parse completion line: \(line)")
             }
             // TODO: I do this split a lot, should just write a processing function for it
             let nameComponents = fullTestName.split(separator: ".")
             guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
-                throw TestOutputParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
+                throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
             }
             let test = Test(suite: String(testSuite), name: String(testName))
 
             guard let timeString = processedLine.split(separator: "(").last?.split(separator: " ").first, let testDuration = Double(String(timeString)) else {
-                throw TestOutputParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
+                throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
             }
 
             if line.contains("passed") {
@@ -158,12 +152,12 @@ class PeregrineRunner: TestRunner {
         } else if line.contains("error:") {
             let errorComponents = line.split(separator: "error:")
             guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
-                throw TestOutputParseError.unexpectedLineFormat("Could not parse error line: \(line)")
+                throw TestParseError.unexpectedLineFormat("Could not parse error line: \(line)")
             }
             let location = String(errorLocation.trimmingCharacters(in: [":", " "]))
             let failureComponents = testAndFail.split(separator: ":")
             guard let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces), let failure = failureComponents.last else {
-                throw TestOutputParseError.unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
+                throw TestParseError.unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
             }
             let testNameComponents = testName.split(separator: ".")
             let test = Test(suite: String(testNameComponents.first!), name: String(testNameComponents.last!))
@@ -174,6 +168,6 @@ class PeregrineRunner: TestRunner {
     }
 }
 
-enum TestOutputParseError: Error {
+enum TestParseError: Error {
     case unexpectedLineFormat(String)
 }

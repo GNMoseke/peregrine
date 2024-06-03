@@ -10,16 +10,13 @@ struct Peregrine: AsyncParsableCommand {
     @Option(help: "Provide a specific swift toolchain path.")
     var toolchain: String = "/usr/bin/swift"
 
-    @Option(help: "Execute tests in parallel")
-    var parallel: Bool = false
-
     @Flag(help: "Output a list of the tests by runtime, longest first")
     var showTimes: Bool = false
 
     @Option(help: "Change the count of longest test output. Defaults to all.")
     var longestTestCount: Int? = nil
 
-    // Again, this should be handeld with xunit, but the spm xunit output is severely lacking
+    // Again, this should be handled with xunit, but the spm xunit output is severely lacking
     @Option(help: "Control the output format for long tests")
     var longTestOutputFormat: LongTestOutputFormat = .stdout
 
@@ -27,9 +24,9 @@ struct Peregrine: AsyncParsableCommand {
         // TODO: allow direct passthrough of swift test options
 
         // Want to do junit xml output and parsing, options for showing longest running tests, etc
-        print("=== PEREGRINE ===")
-        try print(getSwiftVersion())
-        let testOptions = TestOptions(parallel: parallel, generateXunit: false, toolchainPath: toolchain, packagePath: path)
+        print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
+        try print(getSwiftVersion(), .Cyan)
+        let testOptions = TestOptions(toolchainPath: toolchain, packagePath: path)
         let testRunner = PeregrineRunner(options: testOptions)
         let tests = try await testRunner.listTests()
         let testResults = try await testRunner.runTests(tests: tests)
@@ -48,6 +45,6 @@ struct Peregrine: AsyncParsableCommand {
     }
 
     private func getSwiftVersion() throws -> String {
-        try Command(executablePath: .init(toolchain)).addArgument("--version").waitForOutput().stdout
+        "Toolchain Information:\n\(try Command(executablePath: .init(toolchain)).addArgument("--version").waitForOutput().stdout)"
     }
 }

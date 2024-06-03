@@ -8,6 +8,7 @@ enum TextColor: String {
     case GreenBold = "\u{001B}[0;32;1m"
     case RedBold = "\u{001B}[0;31;1m"
     case CyanBold = "\u{001B}[0;36;1m"
+    case Cyan = "\u{001B}[0;36m"
 }
 
 enum NerdFontIcons: String {

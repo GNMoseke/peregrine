@@ -28,6 +28,9 @@ extension Peregrine {
         @Option(help: "Control the output format for long tests")
         var longTestOutputFormat: LongTestOutputFormat = .stdout
 
+        @Option(help: "Output path for longest test file. Ignored if output is set to stdout.")
+        var longestTestOutputPath: String = "tests-by-time"
+
         mutating func run() async throws {
             // TODO: allow direct passthrough of swift test options
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
@@ -35,22 +38,11 @@ extension Peregrine {
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
             print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
             try print(getSwiftVersion(), .Cyan)
-            let testOptions = TestOptions(toolchainPath: options.toolchain, packagePath: options.path)
+            let testOptions = TestOptions(toolchainPath: options.toolchain, packagePath: options.path, timingOptions: TestOptions.TestTimingOptions(showTimes: showTimes, count: longestTestCount, outputFormat: longTestOutputFormat, outputPath: longestTestOutputPath))
             let testRunner = PeregrineRunner(options: testOptions)
             let tests = try await testRunner.listTests()
             let testResults = try await testRunner.runTests(tests: tests)
             try testRunner.output(results: testResults)
-            if showTimes {
-                var sortedByTime = testResults.tests.sorted(by: { $0.duration > $1.duration })
-                if let countLimit = longestTestCount {
-                    sortedByTime = Array(sortedByTime[0 ..< countLimit])
-                }
-                print("=== \(NerdFontIcons.Timer.rawValue) SLOWEST TESTS ===", .CyanBold)
-                for (idx, result) in sortedByTime.enumerated() {
-                    // TODO: line up the lines, just generally clean up this output
-                    print("\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded" : "Failed")): \(result.duration)", result.passed ? .GreenBold : .RedBold)
-                }
-            }
         }
 
         private func getSwiftVersion() throws -> String {

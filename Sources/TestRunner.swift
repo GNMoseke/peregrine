@@ -74,6 +74,13 @@ class PeregrineRunner: TestRunner {
     }
 
     func listTests() async throws -> [Test] {
+        guard
+            FileManager.default
+                .fileExists(atPath: options.packagePath + (options.packagePath.last == "/" ? "" : "/") + "Package.swift")
+        else {
+            print("Given path \(options.packagePath) does not appear to be a swift package.", .RedBold)
+            exit(1)
+        }
         print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
         guard
             let listProcess = try (

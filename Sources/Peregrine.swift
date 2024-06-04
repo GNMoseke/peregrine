@@ -34,6 +34,9 @@ extension Peregrine {
         @Option(help: "Output path for longest test file. Ignored if output is set to stdout.")
         var longestTestOutputPath: String = "tests-by-time"
 
+        @Option(parsing: .remaining, help: ArgumentHelp("Pass swift flags through to the underlying test invocation", discussion: "Note that parallel testing may cause unexpected parsing behavior as spms xunit output is currently lacking."))
+        var swiftFlags: [String] = []
+
         mutating func run() async throws {
             // TODO: allow direct passthrough of swift test options
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
@@ -41,7 +44,7 @@ extension Peregrine {
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
             print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
             try print(getSwiftVersion(), .Cyan)
-            let testOptions = TestOptions(toolchainPath: options.toolchain, packagePath: options.path, plaintextOutput: options.plaintextOutput, timingOptions: TestOptions.TestTimingOptions(showTimes: showTimes, count: longestTestCount, outputFormat: longTestOutputFormat, outputPath: longestTestOutputPath))
+            let testOptions = TestOptions(toolchainPath: options.toolchain, packagePath: options.path, plaintextOutput: options.plaintextOutput, additionalSwiftFlags: swiftFlags, timingOptions: TestOptions.TestTimingOptions(showTimes: showTimes, count: longestTestCount, outputFormat: longTestOutputFormat, outputPath: longestTestOutputPath))
             let testRunner = PeregrineRunner(options: testOptions)
             let tests = try await testRunner.listTests()
             let testResults = try await testRunner.runTests(tests: tests)

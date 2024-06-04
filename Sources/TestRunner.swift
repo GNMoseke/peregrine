@@ -19,11 +19,13 @@ struct TestOptions {
     let packagePath: String
     let timingOptions: TestTimingOptions
     let symbolOutput: SymbolOutput
+    let additionalSwiftFlags: [String]
 
-    init(toolchainPath: String, packagePath: String, plaintextOutput: Bool, timingOptions: TestTimingOptions = TestTimingOptions(showTimes: false, count: nil, outputFormat: .stdout, outputPath: "/dev/null")) {
+    init(toolchainPath: String, packagePath: String, plaintextOutput: Bool, additionalSwiftFlags: [String] = [], timingOptions: TestTimingOptions = TestTimingOptions(showTimes: false, count: nil, outputFormat: .stdout, outputPath: "/dev/null")) {
         self.toolchainPath = toolchainPath
         self.packagePath = packagePath
         self.timingOptions = timingOptions
+        self.additionalSwiftFlags = additionalSwiftFlags
         symbolOutput = SymbolOutput(plaintext: plaintextOutput)
     }
 }
@@ -64,6 +66,7 @@ class PeregrineRunner: TestRunner {
         print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
         let listProcess = try Command(executablePath: .init(options.toolchainPath))
             .addArguments(["test", "list", "--package-path", options.packagePath])
+            .addArguments(options.additionalSwiftFlags)
             .setStdout(.pipe)
             .setStderr(.pipe)
             .spawn()
@@ -86,6 +89,7 @@ class PeregrineRunner: TestRunner {
         let testCount = tests.count
         let testProcess = try Command(executablePath: .init(options.toolchainPath))
             .addArguments(["test", "--package-path", options.packagePath])
+            .addArguments(options.additionalSwiftFlags)
             .setStdout(.pipe) // swift build diagnostics go to stder
             .setStderr(.pipe)
             .spawn()
@@ -156,6 +160,8 @@ class PeregrineRunner: TestRunner {
 
     private func parseTestLine(_ line: String) throws -> Bool {
         // FIXME: pretty brute-force here, should use a regex
+        // Especially of concern here is the line.contains("error:") since that's super general and some packages may
+        // output that as part of the test rather than from spm output
         if line.starts(with: "Test Case") && !line.contains("started at") {
             var processedLine = line
             processedLine.removeFirst("Test Case '".count)

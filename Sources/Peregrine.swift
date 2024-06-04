@@ -14,8 +14,8 @@ struct Peregrine: AsyncParsableCommand {
         @Argument(help: "Path to swift package.")
         var path: String = "."
 
-        @Option(help: "Provide a specific swift toolchain path.")
-        var toolchain: String = "/usr/bin/swift"
+        @Option(help: "Provide a specific swift toolchain executable. Default is to look in $PATH")
+        var toolchain: String? = nil
 
         @Flag(
             name: .customLong("plain"),
@@ -77,7 +77,7 @@ extension Peregrine {
         }
 
         private func getSwiftVersion() throws -> String {
-            try "Toolchain Information:\n\(Command(executablePath: .init(options.toolchain)).addArgument("--version").waitForOutput().stdout)"
+            try "Toolchain Information:\n\((options.toolchain == nil ? Command.findInPath(withName: "swift") : Command(executablePath: .init(options.toolchain!)))?.addArgument("--version").waitForOutput().stdout ?? "Unknown")"
         }
     }
 
@@ -106,4 +106,8 @@ extension Peregrine {
             }
         }
     }
+}
+
+enum PeregrineError: Error {
+    case couldNotFindSwiftExecutable
 }

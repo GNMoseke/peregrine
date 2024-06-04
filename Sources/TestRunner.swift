@@ -15,14 +15,14 @@ struct TestOptions {
         let outputPath: String
     }
 
-    let toolchainPath: String
+    let toolchainPath: String?
     let packagePath: String
     let timingOptions: TestTimingOptions
     let symbolOutput: SymbolOutput
     let additionalSwiftFlags: [String]
 
     init(
-        toolchainPath: String,
+        toolchainPath: String?,
         packagePath: String,
         plaintextOutput: Bool,
         additionalSwiftFlags: [String] = [],
@@ -75,12 +75,19 @@ class PeregrineRunner: TestRunner {
 
     func listTests() async throws -> [Test] {
         print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
-        let listProcess = try Command(executablePath: .init(options.toolchainPath))
-            .addArguments(["test", "list", "--package-path", options.packagePath])
-            .addArguments(options.additionalSwiftFlags)
-            .setStdout(.pipe)
-            .setStderr(.pipe)
-            .spawn()
+        guard
+            let listProcess = try (
+                options.toolchainPath == nil ? Command
+                    .findInPath(withName: "swift") : Command(executablePath: .init(options.toolchainPath!))
+            )?
+                .addArguments(["test", "list", "--package-path", options.packagePath])
+                .addArguments(options.additionalSwiftFlags)
+                .setStdout(.pipe)
+                .setStderr(.pipe)
+                .spawn()
+        else {
+            throw PeregrineError.couldNotFindSwiftExecutable
+        }
 
         var tests = [Test]()
         for try await line in listProcess.stdout.lines {
@@ -98,12 +105,19 @@ class PeregrineRunner: TestRunner {
 
     func runTests(tests: [Test]) async throws -> TestRunOutput {
         let testCount = tests.count
-        let testProcess = try Command(executablePath: .init(options.toolchainPath))
-            .addArguments(["test", "--package-path", options.packagePath])
-            .addArguments(options.additionalSwiftFlags)
-            .setStdout(.pipe) // swift build diagnostics go to stder
-            .setStderr(.pipe)
-            .spawn()
+        guard
+            let testProcess = try (
+                options.toolchainPath == nil ? Command
+                    .findInPath(withName: "swift") : Command(executablePath: .init(options.toolchainPath!))
+            )?
+                .addArguments(["test", "--package-path", options.packagePath])
+                .addArguments(options.additionalSwiftFlags)
+                .setStdout(.pipe) // swift build diagnostics go to stder
+                .setStderr(.pipe)
+                .spawn()
+        else {
+            throw PeregrineError.couldNotFindSwiftExecutable
+        }
 
         print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
 

@@ -32,13 +32,13 @@ enum NerdFontIcons: String {
 
     var plain: String {
         switch self {
-        case .ErlenmeyerFlask: "*"
-        case .FailedTestFlask, .Failure: "!"
-        case .Timer: "@"
-        case .Build: "%"
-        case .Success: ""
-        case .RightArrow: ">"
-        case .FilledBlock, .LightlyShadedBlock: rawValue
+            case .ErlenmeyerFlask: "*"
+            case .FailedTestFlask, .Failure: "!"
+            case .Timer: "@"
+            case .Build: "%"
+            case .Success: ""
+            case .RightArrow: ">"
+            case .FilledBlock, .LightlyShadedBlock: rawValue
         }
     }
 }

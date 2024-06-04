@@ -21,7 +21,18 @@ struct TestOptions {
     let symbolOutput: SymbolOutput
     let additionalSwiftFlags: [String]
 
-    init(toolchainPath: String, packagePath: String, plaintextOutput: Bool, additionalSwiftFlags: [String] = [], timingOptions: TestTimingOptions = TestTimingOptions(showTimes: false, count: nil, outputFormat: .stdout, outputPath: "/dev/null")) {
+    init(
+        toolchainPath: String,
+        packagePath: String,
+        plaintextOutput: Bool,
+        additionalSwiftFlags: [String] = [],
+        timingOptions: TestTimingOptions = TestTimingOptions(
+            showTimes: false,
+            count: nil,
+            outputFormat: .stdout,
+            outputPath: "/dev/null"
+        )
+    ) {
         self.toolchainPath = toolchainPath
         self.packagePath = packagePath
         self.timingOptions = timingOptions
@@ -100,7 +111,10 @@ class PeregrineRunner: TestRunner {
         let stepSize: Int = testCount / progressBarCharacterLength
         var completeTests = 0
         var progressIndex = 0
-        var progressBar = String(repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock), count: progressBarCharacterLength)
+        var progressBar = String(
+            repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock),
+            count: progressBarCharacterLength
+        )
         print(progressBar, terminator: "\r")
         fflush(nil)
         var backtraceLines = [String]()
@@ -118,7 +132,10 @@ class PeregrineRunner: TestRunner {
                 completeTests += 1
                 if completeTests % stepSize == 0 {
                     progressBar = String(progressBar.dropLast())
-                    progressBar.insert(Character(options.symbolOutput.getSymbol(.FilledBlock)), at: progressBar.startIndex)
+                    progressBar.insert(
+                        Character(options.symbolOutput.getSymbol(.FilledBlock)),
+                        at: progressBar.startIndex
+                    )
                     progressIndex += 1
                     print(progressBar, terminator: "\r")
                     fflush(nil)
@@ -130,7 +147,11 @@ class PeregrineRunner: TestRunner {
         if try await testProcess.status.terminatedSuccessfully {
             return TestRunOutput(success: true, tests: Array(testResults.values), backtraceLines: nil)
         } else {
-            return TestRunOutput(success: false, tests: Array(testResults.values), backtraceLines: backtraceLines.isEmpty ? nil : backtraceLines)
+            return TestRunOutput(
+                success: false,
+                tests: Array(testResults.values),
+                backtraceLines: backtraceLines.isEmpty ? nil : backtraceLines
+            )
         }
     }
 
@@ -144,16 +165,23 @@ class PeregrineRunner: TestRunner {
                 sortedByTime = Array(sortedByTime[0 ..< countLimit])
             }
             switch options.timingOptions.outputFormat {
-            case .stdout:
-                print("=== \(options.symbolOutput.getSymbol(.Timer)) SLOWEST TESTS ===", .CyanBold)
-                for (idx, result) in sortedByTime.enumerated() {
-                    // TODO: line up the lines, just generally clean up this output
-                    print("\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded" : "Failed")): \(result.duration)", result.passed ? .GreenBold : .RedBold)
-                }
-            case .csv:
-                let lines = "Suite,Name,Time (s),Passed\n" + sortedByTime.map { "\($0.test.suite),\($0.test.name),\($0.duration),\($0.passed)" }.joined(separator: "\n")
-                FileManager.default.createFile(atPath: options.timingOptions.outputPath, contents: lines.data(using: .ascii))
-                print("Successfully output test times to \(options.timingOptions.outputPath)", .Cyan)
+                case .stdout:
+                    print("=== \(options.symbolOutput.getSymbol(.Timer)) SLOWEST TESTS ===", .CyanBold)
+                    for (idx, result) in sortedByTime.enumerated() {
+                        // TODO: line up the lines, just generally clean up this output
+                        print(
+                            "\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded" : "Failed")): \(result.duration)",
+                            result.passed ? .GreenBold : .RedBold
+                        )
+                    }
+                case .csv:
+                    let lines = "Suite,Name,Time (s),Passed\n" + sortedByTime
+                        .map { "\($0.test.suite),\($0.test.name),\($0.duration),\($0.passed)" }.joined(separator: "\n")
+                    FileManager.default.createFile(
+                        atPath: options.timingOptions.outputPath,
+                        contents: lines.data(using: .ascii)
+                    )
+                    print("Successfully output test times to \(options.timingOptions.outputPath)", .Cyan)
             }
         }
     }
@@ -174,7 +202,10 @@ class PeregrineRunner: TestRunner {
             }
             let test = Test(suite: String(testSuite), name: String(testName))
 
-            guard let timeString = processedLine.split(separator: "(").last?.split(separator: " ").first, let testDuration = Double(String(timeString)) else {
+            guard
+                let timeString = processedLine.split(separator: "(").last?.split(separator: " ").first,
+                let testDuration = Double(String(timeString))
+            else {
                 throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
             }
 
@@ -186,8 +217,8 @@ class PeregrineRunner: TestRunner {
                 testResults[test]?.duration = .seconds(testDuration)
                 return true
             }
-        // FIXME: still slightly hacky but less prone to collision - XCT fails output the file name on the line so use that
-        // for more uniqueness guarantees
+            // FIXME: still slightly hacky but less prone to collision - XCT fails output the file name on the line so use that
+            // for more uniqueness guarantees
         } else if line.contains("error:") && line.contains(".swift") {
             let errorComponents = line.split(separator: "error:")
             guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
@@ -195,12 +226,20 @@ class PeregrineRunner: TestRunner {
             }
             let location = String(errorLocation.trimmingCharacters(in: [":", " "]))
             let failureComponents = testAndFail.split(separator: ":")
-            guard let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces), let failure = failureComponents.last else {
-                throw TestParseError.unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
+            guard
+                let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces),
+                let failure = failureComponents.last
+            else {
+                throw TestParseError
+                    .unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
             }
             let testNameComponents = testName.split(separator: ".")
             let test = Test(suite: String(testNameComponents.first!), name: String(testNameComponents.last!))
-            testResults[test, default: TestResult(test: test, passed: false, errors: [], duration: .seconds(0))].errors.append((location, String(failure)))
+            testResults[test, default: TestResult(test: test, passed: false, errors: [], duration: .seconds(0))].errors
+                .append((
+                    location,
+                    String(failure)
+                ))
             return false
         }
         return false

@@ -26,8 +26,10 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
 func processErrors(results: [TestResult], symbolOutput: SymbolOutput) throws -> String {
     var testsBySuite: [String: String] = [:]
     results.filter { !$0.passed }.forEach { result in
-        let testHeader = " \(symbolOutput.getSymbol(.RightArrow)) \(symbolOutput.getSymbol(.FailedTestFlask)) \(result.test.name) - (\(result.duration))\n"
-        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.RightArrow)) \($0.1) \($0.0)" }.joined(separator: "\n")
+        let testHeader =
+            " \(symbolOutput.getSymbol(.RightArrow)) \(symbolOutput.getSymbol(.FailedTestFlask)) \(result.test.name) - (\(result.duration))\n"
+        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.RightArrow)) \($0.1) \($0.0)" }
+            .joined(separator: "\n")
         testsBySuite[result.test.suite, default: ""] += testHeader + errors + "\n"
     }
     var finalOutput = ""

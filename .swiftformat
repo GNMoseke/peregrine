@@ -1,0 +1,8 @@
+--maxwidth 120
+--semicolons never
+--indentcase true
+--xcodeindentation enabled
+--wraparguments before-first
+--wrapcollections before-first
+--wrapconditions before-first
+--wrapparameters before-first

@@ -160,8 +160,6 @@ class PeregrineRunner: TestRunner {
 
     private func parseTestLine(_ line: String) throws -> Bool {
         // FIXME: pretty brute-force here, should use a regex
-        // Especially of concern here is the line.contains("error:") since that's super general and some packages may
-        // output that as part of the test rather than from spm output
         if line.starts(with: "Test Case") && !line.contains("started at") {
             var processedLine = line
             processedLine.removeFirst("Test Case '".count)
@@ -188,7 +186,9 @@ class PeregrineRunner: TestRunner {
                 testResults[test]?.duration = .seconds(testDuration)
                 return true
             }
-        } else if line.contains("error:") {
+        // FIXME: still slightly hacky but less prone to collision - XCT fails output the file name on the line so use that
+        // for more uniqueness guarantees
+        } else if line.contains("error:") && line.contains(".swift") {
             let errorComponents = line.split(separator: "error:")
             guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse error line: \(line)")

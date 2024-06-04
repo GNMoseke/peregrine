@@ -11,6 +11,13 @@ enum TextColor: String {
     case Cyan = "\u{001B}[0;36m"
 }
 
+struct SymbolOutput {
+    let plaintext: Bool
+    func getSymbol(_ icon: NerdFontIcons) -> String {
+        return plaintext ? icon.plain : icon.rawValue
+    }
+}
+
 enum NerdFontIcons: String {
     case ErlenmeyerFlask = "󰂓"
     case FailedTestFlask = "󱉄"
@@ -22,6 +29,18 @@ enum NerdFontIcons: String {
     // not technically nerd font icons but putting here
     case FilledBlock = "█"
     case LightlyShadedBlock = "░"
+
+    var plain: String {
+        switch self {
+        case .ErlenmeyerFlask: "*"
+        case .FailedTestFlask, .Failure: "!"
+        case .Timer: "@"
+        case .Build: "%"
+        case .Success: ""
+        case .RightArrow: ">"
+        case .FilledBlock, .LightlyShadedBlock: rawValue
+        }
+    }
 }
 
 enum LongTestOutputFormat: String, ExpressibleByArgument {

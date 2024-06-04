@@ -11,6 +11,9 @@ struct Peregrine: AsyncParsableCommand {
 
         @Option(help: "Provide a specific swift toolchain path.")
         var toolchain: String = "/usr/bin/swift"
+
+        @Flag(name: .customLong("plain"), help: "Output symbols in plaintext (rather than nerd font symbols). Defaults to false.")
+        var plaintextOutput: Bool = false
     }
 }
 
@@ -38,7 +41,7 @@ extension Peregrine {
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
             print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
             try print(getSwiftVersion(), .Cyan)
-            let testOptions = TestOptions(toolchainPath: options.toolchain, packagePath: options.path, timingOptions: TestOptions.TestTimingOptions(showTimes: showTimes, count: longestTestCount, outputFormat: longTestOutputFormat, outputPath: longestTestOutputPath))
+            let testOptions = TestOptions(toolchainPath: options.toolchain, packagePath: options.path, plaintextOutput: options.plaintextOutput, timingOptions: TestOptions.TestTimingOptions(showTimes: showTimes, count: longestTestCount, outputFormat: longTestOutputFormat, outputPath: longestTestOutputPath))
             let testRunner = PeregrineRunner(options: testOptions)
             let tests = try await testRunner.listTests()
             let testResults = try await testRunner.runTests(tests: tests)
@@ -58,7 +61,7 @@ extension Peregrine {
         // Thinking about a "compare by revision" option?
         mutating func run() async throws {
             print("=== PEREGRINE - COUNTING TESTS ===", .CyanBold)
-            let tests = try await PeregrineRunner(options: TestOptions(toolchainPath: options.toolchain, packagePath: options.path)).listTests()
+            let tests = try await PeregrineRunner(options: TestOptions(toolchainPath: options.toolchain, packagePath: options.path, plaintextOutput: options.plaintextOutput)).listTests()
             let testsBySuite = Dictionary(grouping: tests, by: \.suite)
             print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .GreenBold)
             if groupBySuite {

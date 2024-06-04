@@ -18,11 +18,13 @@ struct TestOptions {
     let toolchainPath: String
     let packagePath: String
     let timingOptions: TestTimingOptions
+    let symbolOutput: SymbolOutput
 
-    init(toolchainPath: String, packagePath: String, timingOptions: TestTimingOptions = TestTimingOptions(showTimes: false, count: nil, outputFormat: .stdout, outputPath: "/dev/null")) {
+    init(toolchainPath: String, packagePath: String, plaintextOutput: Bool, timingOptions: TestTimingOptions = TestTimingOptions(showTimes: false, count: nil, outputFormat: .stdout, outputPath: "/dev/null")) {
         self.toolchainPath = toolchainPath
         self.packagePath = packagePath
         self.timingOptions = timingOptions
+        symbolOutput = SymbolOutput(plaintext: plaintextOutput)
     }
 }
 
@@ -59,7 +61,7 @@ class PeregrineRunner: TestRunner {
     }
 
     func listTests() async throws -> [Test] {
-        print(NerdFontIcons.Build.rawValue + " Building...", .CyanBold)
+        print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
         let listProcess = try Command(executablePath: .init(options.toolchainPath))
             .addArguments(["test", "list", "--package-path", options.packagePath])
             .setStdout(.pipe)
@@ -88,13 +90,13 @@ class PeregrineRunner: TestRunner {
             .setStderr(.pipe)
             .spawn()
 
-        print(NerdFontIcons.ErlenmeyerFlask.rawValue + " Running Tests...", .CyanBold)
+        print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
 
         let progressBarCharacterLength = 45
         let stepSize: Int = testCount / progressBarCharacterLength
         var completeTests = 0
         var progressIndex = 0
-        var progressBar = String(repeating: NerdFontIcons.LightlyShadedBlock.rawValue, count: progressBarCharacterLength)
+        var progressBar = String(repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock), count: progressBarCharacterLength)
         print(progressBar, terminator: "\r")
         fflush(nil)
         var backtraceLines = [String]()
@@ -112,7 +114,7 @@ class PeregrineRunner: TestRunner {
                 completeTests += 1
                 if completeTests % stepSize == 0 {
                     progressBar = String(progressBar.dropLast())
-                    progressBar.insert(Character(NerdFontIcons.FilledBlock.rawValue), at: progressBar.startIndex)
+                    progressBar.insert(Character(options.symbolOutput.getSymbol(.FilledBlock)), at: progressBar.startIndex)
                     progressIndex += 1
                     print(progressBar, terminator: "\r")
                     fflush(nil)
@@ -129,7 +131,7 @@ class PeregrineRunner: TestRunner {
     }
 
     func output(results: TestRunOutput) throws {
-        let processedOutput = try processOutput(testOutput: results)
+        let processedOutput = try processOutput(testOutput: results, symbolOutput: options.symbolOutput)
         print(processedOutput.output, processedOutput.color)
 
         if options.timingOptions.showTimes {
@@ -139,7 +141,7 @@ class PeregrineRunner: TestRunner {
             }
             switch options.timingOptions.outputFormat {
             case .stdout:
-                print("=== \(NerdFontIcons.Timer.rawValue) SLOWEST TESTS ===", .CyanBold)
+                print("=== \(options.symbolOutput.getSymbol(.Timer)) SLOWEST TESTS ===", .CyanBold)
                 for (idx, result) in sortedByTime.enumerated() {
                     // TODO: line up the lines, just generally clean up this output
                     print("\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded" : "Failed")): \(result.duration)", result.passed ? .GreenBold : .RedBold)

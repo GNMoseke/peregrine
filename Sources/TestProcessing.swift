@@ -1,9 +1,9 @@
 
 /// This relies heavily on the output format from swift test remaining the same, I'd like to parse xunit here
 /// but spm's xunit output doesn't give valuable information: https://github.com/apple/swift-package-manager/issues/7622
-func processOutput(testOutput: TestRunOutput) throws -> (output: String, color: TextColor) {
+func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws -> (output: String, color: TextColor) {
     if testOutput.success {
-        return (NerdFontIcons.Success.rawValue + " All Tests Passed!", .GreenBold)
+        return (symbolOutput.getSymbol(.Success) + " All Tests Passed!", .GreenBold)
     } else if let backtraceLines = testOutput.backtraceLines {
         return (
             """
@@ -16,18 +16,18 @@ func processOutput(testOutput: TestRunOutput) throws -> (output: String, color: 
         return try (
             """
             === TESTS FAILED ===
-            \(processErrors(results: testOutput.tests))
+            \(processErrors(results: testOutput.tests, symbolOutput: symbolOutput))
             """,
             .RedBold
         )
     }
 }
 
-func processErrors(results: [TestResult]) throws -> String {
+func processErrors(results: [TestResult], symbolOutput: SymbolOutput) throws -> String {
     var testsBySuite: [String: String] = [:]
     results.filter { !$0.passed }.forEach { result in
-        let testHeader = " \(NerdFontIcons.RightArrow.rawValue) \(NerdFontIcons.FailedTestFlask.rawValue) \(result.test.name) - (\(result.duration))\n"
-        let errors = result.errors.map { "   \(NerdFontIcons.RightArrow.rawValue) \($0.1) \($0.0)" }.joined(separator: "\n")
+        let testHeader = " \(symbolOutput.getSymbol(.RightArrow)) \(symbolOutput.getSymbol(.FailedTestFlask)) \(result.test.name) - (\(result.duration))\n"
+        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.RightArrow)) \($0.1) \($0.0)" }.joined(separator: "\n")
         testsBySuite[result.test.suite, default: ""] += testHeader + errors + "\n"
     }
     var finalOutput = ""

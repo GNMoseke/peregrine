@@ -22,6 +22,9 @@ struct Peregrine: AsyncParsableCommand {
             help: "Output symbols in plaintext (rather than nerd font symbols). Defaults to false."
         )
         var plaintextOutput: Bool = false
+
+        @Flag(help: "Supress toolchain information & progress output")
+        var quiet: Bool = false
     }
 }
 
@@ -52,16 +55,18 @@ extension Peregrine {
         var swiftFlags: [String] = []
 
         mutating func run() async throws {
-            // TODO: allow direct passthrough of swift test options
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
 
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
-            print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
-            try print(getSwiftVersion(), .Cyan)
+            if !options.quiet {
+                print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
+                try print(getSwiftVersion(), .Cyan)
+            }
             let testOptions = TestOptions(
                 toolchainPath: options.toolchain,
                 packagePath: options.path,
                 plaintextOutput: options.plaintextOutput,
+                quietOutput: options.quiet,
                 additionalSwiftFlags: swiftFlags,
                 timingOptions: TestOptions.TestTimingOptions(
                     showTimes: showTimes,

@@ -20,11 +20,13 @@ struct TestOptions {
     let timingOptions: TestTimingOptions
     let symbolOutput: SymbolOutput
     let additionalSwiftFlags: [String]
+    let quietOutput: Bool
 
     init(
         toolchainPath: String?,
         packagePath: String,
         plaintextOutput: Bool,
+        quietOutput: Bool = false,
         additionalSwiftFlags: [String] = [],
         timingOptions: TestTimingOptions = TestTimingOptions(
             showTimes: false,
@@ -38,6 +40,7 @@ struct TestOptions {
         self.timingOptions = timingOptions
         self.additionalSwiftFlags = additionalSwiftFlags
         symbolOutput = SymbolOutput(plaintext: plaintextOutput)
+        self.quietOutput = quietOutput
     }
 }
 
@@ -81,7 +84,11 @@ class PeregrineRunner: TestRunner {
             print("Given path \(options.packagePath) does not appear to be a swift package.", .RedBold)
             exit(1)
         }
-        print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
+
+        if !options.quietOutput {
+            print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
+        }
+
         guard
             let listProcess = try (
                 options.toolchainPath == nil ? Command
@@ -126,7 +133,9 @@ class PeregrineRunner: TestRunner {
             throw PeregrineError.couldNotFindSwiftExecutable
         }
 
-        print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
+        if !options.quietOutput {
+            print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
+        }
 
         let progressBarCharacterLength = 45
         let stepSize: Int = testCount / progressBarCharacterLength
@@ -136,8 +145,11 @@ class PeregrineRunner: TestRunner {
             repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock),
             count: progressBarCharacterLength
         )
-        print(progressBar, terminator: "\r")
-        fflush(nil)
+
+        if !options.quietOutput {
+            print(progressBar, terminator: "\r")
+            fflush(nil)
+        }
         var backtraceLines = [String]()
         var collectBacktrace = false
         // TODO: clean this up, very heavy-handed processing
@@ -149,7 +161,8 @@ class PeregrineRunner: TestRunner {
                 backtraceLines.append(line)
                 collectBacktrace = true
             }
-            if try parseTestLine(line) {
+            let testCompleted = try parseTestLine(line)
+            if testCompleted && !options.quietOutput {
                 completeTests += 1
                 if completeTests % stepSize == 0 {
                     progressBar = String(progressBar.dropLast())
@@ -163,8 +176,8 @@ class PeregrineRunner: TestRunner {
                 }
             }
         }
-        print("\n")
         try testProcess.wait()
+
         if try await testProcess.status.terminatedSuccessfully {
             return TestRunOutput(success: true, tests: Array(testResults.values), backtraceLines: nil)
         } else {

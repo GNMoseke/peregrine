@@ -3,10 +3,12 @@
 /// but spm's xunit output doesn't give valuable information: https://github.com/apple/swift-package-manager/issues/7622
 func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws -> (output: String, color: TextColor) {
     if testOutput.success {
-        return (symbolOutput.getSymbol(.Success) + " All Tests Passed!", .GreenBold)
+        return ("\n\n" + symbolOutput.getSymbol(.Success) + " All Tests Passed!", .GreenBold)
     } else if let backtraceLines = testOutput.backtraceLines {
         return (
             """
+
+
             === TESTS CRASHED ===
             \(backtraceLines.joined(separator: "\n"))
             """,
@@ -15,6 +17,8 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
     } else {
         return try (
             """
+
+
             === TESTS FAILED ===
             \(processErrors(results: testOutput.tests, symbolOutput: symbolOutput))
             """,

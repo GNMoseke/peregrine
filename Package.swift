@@ -14,11 +14,12 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "peregrine",
+            name: "Peregrine",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftCommand", package: "SwiftCommand")
             ]
         ),
+        .testTarget(name: "PeregrineTests", dependencies: ["Peregrine"])
     ]
 )

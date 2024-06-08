@@ -20,7 +20,7 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
 
 
             === TESTS FAILED ===
-            \(processErrors(results: testOutput.tests, symbolOutput: symbolOutput))
+            \(processErrors(results: testOutput.results, symbolOutput: symbolOutput))
             """,
             .RedBold
         )
@@ -32,7 +32,7 @@ func processErrors(results: [TestResult], symbolOutput: SymbolOutput) throws -> 
     results.filter { !$0.passed }.forEach { result in
         let testHeader =
             " \(symbolOutput.getSymbol(.RightArrow)) \(symbolOutput.getSymbol(.FailedTestFlask)) \(result.test.name) - (\(result.duration))\n"
-        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.RightArrow)) \($0.1) \($0.0)" }
+        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.RightArrow)) \($0.1) -> \($0.0)" }
             .joined(separator: "\n")
         testsBySuite[result.test.suite, default: ""] += testHeader + errors + "\n"
     }

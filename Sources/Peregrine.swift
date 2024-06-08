@@ -48,7 +48,7 @@ extension Peregrine {
         @Option(
             parsing: .remaining,
             help: ArgumentHelp(
-                "Pass swift flags through to the underlying test invocation",
+                "Pass swift flags through to the underlying test invocation.",
                 discussion: "Note that parallel testing may cause unexpected parsing behavior as spms xunit output is currently lacking."
             )
         )

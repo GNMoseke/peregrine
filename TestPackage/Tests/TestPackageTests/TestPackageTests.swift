@@ -34,18 +34,6 @@ final class SuiteTwo: XCTestCase {
         XCTAssertEqual(1, 2)
         XCTAssertNil("Zagreus")
     }
-
-    // func testLong() {
-    //     sleep(1)
-    // }
-
-    // func testLonger() {
-    //     sleep(2)
-    // }
-
-    // func testLongest() {
-    //     sleep(3)
-    // }
 }
 
 final class SuiteThatCrashes: XCTestCase {

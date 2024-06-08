@@ -3,7 +3,7 @@ import SwiftCommand
 
 struct TestRunOutput {
     let success: Bool
-    let tests: [TestResult]
+    let results: [TestResult]
     let backtraceLines: [String]?
 }
 
@@ -62,14 +62,14 @@ struct TestResult {
 }
 
 protocol TestRunner {
-    var options: TestOptions { get }
+    var options: TestOptions { get set }
     func listTests() async throws -> [Test]
     func runTests(tests: [Test]) async throws -> TestRunOutput
     func output(results: TestRunOutput) throws
 }
 
 class PeregrineRunner: TestRunner {
-    let options: TestOptions
+    var options: TestOptions
     var testResults: [Test: TestResult] = [:]
 
     init(options: TestOptions) {
@@ -118,7 +118,14 @@ class PeregrineRunner: TestRunner {
     }
 
     func runTests(tests: [Test]) async throws -> TestRunOutput {
-        let testCount = tests.count
+        // TODO: the tests parameter here is somewhat confusing since it only gets used for couting the number being run
+        // The way to filter/skip is to pass the relevant flag via the passthrough option in peregrine, but that feels a
+        // little funky
+        // I'd like to refactor this to filter to the given test array in this function, but then there has to be some
+        // extra
+        // parsing done to see if --filter or --skip were included and respect them accordingly - `swift test list` does
+        // not use those flags
+        let testCount = tests.count == 0 ? 1 : tests.count
         guard
             let testProcess = try (
                 options.toolchainPath == nil ? Command
@@ -138,7 +145,7 @@ class PeregrineRunner: TestRunner {
         }
 
         let progressBarCharacterLength = 45
-        let stepSize: Int = testCount / progressBarCharacterLength
+        let stepSize: Int = testCount < progressBarCharacterLength ? testCount : testCount / progressBarCharacterLength
         var completeTests = 0
         var progressIndex = 0
         var progressBar = String(
@@ -179,11 +186,11 @@ class PeregrineRunner: TestRunner {
         try testProcess.wait()
 
         if try await testProcess.status.terminatedSuccessfully {
-            return TestRunOutput(success: true, tests: Array(testResults.values), backtraceLines: nil)
+            return TestRunOutput(success: true, results: Array(testResults.values), backtraceLines: nil)
         } else {
             return TestRunOutput(
                 success: false,
-                tests: Array(testResults.values),
+                results: Array(testResults.values),
                 backtraceLines: backtraceLines.isEmpty ? nil : backtraceLines
             )
         }
@@ -194,7 +201,7 @@ class PeregrineRunner: TestRunner {
         print(processedOutput.output, processedOutput.color)
 
         if options.timingOptions.showTimes {
-            var sortedByTime = results.tests.sorted(by: { $0.duration > $1.duration })
+            var sortedByTime = results.results.sorted(by: { $0.duration > $1.duration })
             if let countLimit = options.timingOptions.count {
                 sortedByTime = Array(sortedByTime[0 ..< countLimit])
             }
@@ -272,7 +279,7 @@ class PeregrineRunner: TestRunner {
             testResults[test, default: TestResult(test: test, passed: false, errors: [], duration: .seconds(0))].errors
                 .append((
                     location,
-                    String(failure)
+                    String(failure.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
             return false
         }

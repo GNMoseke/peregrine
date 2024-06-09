@@ -1,7 +1,7 @@
 import ArgumentParser
 
-func print(_ str: String, _ color: TextColor) {
-    print(color.rawValue + str + "\u{001B}[0m")
+func print(_ str: String, terminator: String = "\n", _ color: TextColor) {
+    print(color.rawValue + str + "\u{001B}[0m", terminator: terminator)
 }
 
 enum TextColor: String {

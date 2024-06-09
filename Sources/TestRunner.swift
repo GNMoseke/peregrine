@@ -85,8 +85,23 @@ class PeregrineRunner: TestRunner {
             exit(1)
         }
 
-        if !options.quietOutput {
-            print(options.symbolOutput.getSymbol(.Build) + " Building...", .CyanBold)
+        let buildingTask = Task {
+            if !options.quietOutput {
+                let spinnerStates = ["/", "-", #"\"#, "|"]
+                var iteration = 0
+                while true {
+                    if Task.isCancelled { return }
+                    print(
+                        options.symbolOutput
+                            .getSymbol(.Build) + " Building... \(spinnerStates[iteration % spinnerStates.count])",
+                        terminator: "\r",
+                        .CyanBold
+                    )
+                    try await Task.sleep(for: .milliseconds(10.0))
+                    fflush(nil)
+                    iteration += 1
+                }
+            }
         }
 
         guard
@@ -114,6 +129,7 @@ class PeregrineRunner: TestRunner {
             }
             tests.append(Test(suite: String(testSuite), name: String(testName)))
         }
+        buildingTask.cancel()
         return tests
     }
 
@@ -145,9 +161,10 @@ class PeregrineRunner: TestRunner {
         }
 
         let progressBarCharacterLength = 45
-        let stepSize: Int = testCount < progressBarCharacterLength ? testCount : testCount / progressBarCharacterLength
+        let stepSize: Int = testCount < progressBarCharacterLength ? progressBarCharacterLength / testCount :
+            testCount /
+            progressBarCharacterLength
         var completeTests = 0
-        var progressIndex = 0
         var progressBar = String(
             repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock),
             count: progressBarCharacterLength
@@ -170,20 +187,29 @@ class PeregrineRunner: TestRunner {
             }
             let testCompleted = try parseTestLine(line)
             if testCompleted && !options.quietOutput {
+                // TODO: nicer output for test suites less than the progress bar length. This still looks a tad jank.
                 completeTests += 1
-                if completeTests % stepSize == 0 {
-                    progressBar = String(progressBar.dropLast())
-                    progressBar.insert(
-                        Character(options.symbolOutput.getSymbol(.FilledBlock)),
-                        at: progressBar.startIndex
-                    )
-                    progressIndex += 1
+                if testCount < progressBarCharacterLength {
+                    // in the case that we have fewer tests than the length of the bar, fill in more than 1 block
+                    for _ in 0 ..< stepSize {
+                        progressBar = refreshProgressBar(progressBar)
+                    }
+                    print(progressBar, terminator: "\r")
+                    fflush(nil)
+                } else if completeTests % stepSize == 0 {
+                    progressBar = refreshProgressBar(progressBar)
                     print(progressBar, terminator: "\r")
                     fflush(nil)
                 }
             }
         }
         try testProcess.wait()
+
+        // this could maybe be misleading, but finish the bar when tests finish no matter what
+        print(String(
+            repeating: options.symbolOutput.getSymbol(.FilledBlock),
+            count: progressBarCharacterLength
+        ))
 
         if try await testProcess.status.terminatedSuccessfully {
             return TestRunOutput(success: true, results: Array(testResults.values), backtraceLines: nil)
@@ -194,6 +220,15 @@ class PeregrineRunner: TestRunner {
                 backtraceLines: backtraceLines.isEmpty ? nil : backtraceLines
             )
         }
+    }
+
+    private func refreshProgressBar(_ progressBar: String) -> String {
+        var newProgressBar = String(progressBar.dropLast())
+        newProgressBar.insert(
+            Character(options.symbolOutput.getSymbol(.FilledBlock)),
+            at: progressBar.startIndex
+        )
+        return newProgressBar
     }
 
     func output(results: TestRunOutput) throws {

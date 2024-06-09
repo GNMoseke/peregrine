@@ -57,6 +57,14 @@ extension Peregrine {
         mutating func run() async throws {
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
 
+            // FIXME: there's a potential annoyance here where if peregrine crashes, the tput cnorm won't run
+            // I'm also waffling on if this clear/hide should happen in quiet mode or not. Letting it happen right now.
+            try Command.findInPath(withName: "clear")?.wait()
+            try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
+            defer {
+                try! Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
+            }
+
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
             if !options.quiet {
                 print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)

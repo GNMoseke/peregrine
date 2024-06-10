@@ -2,8 +2,21 @@
 /// This relies heavily on the output format from swift test remaining the same, I'd like to parse xunit here
 /// but spm's xunit output doesn't give valuable information: https://github.com/apple/swift-package-manager/issues/7622
 func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws -> (output: String, color: TextColor) {
+    let skippedTests = testOutput.results.filter { $0.skipped }
+        .map { $0.test.fullName + $0.errors.map { ": \($0.1)" }.joined(separator: " ") }
     if testOutput.success {
-        return ("\n\n" + symbolOutput.getSymbol(.Success) + " All Tests Passed!", .GreenBold)
+        return (
+            """
+
+
+            \(symbolOutput.getSymbol(.Success)) All Tests Passed!
+            \(skippedTests.count > 0 ? """
+            The following tests were skipped:
+            \(skippedTests.joined(separator: "\n"))
+            """ : "")
+            """,
+            .GreenBold
+        )
     } else if let backtraceLines = testOutput.backtraceLines {
         return (
             """
@@ -21,6 +34,10 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
 
             === TESTS FAILED ===
             \(processErrors(results: testOutput.results, symbolOutput: symbolOutput))
+            \(skippedTests.count > 0 ? """
+            The following tests were skipped:
+            \(skippedTests.joined(separator: "\n"))
+            """ : "")
             """,
             .RedBold
         )

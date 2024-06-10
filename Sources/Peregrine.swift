@@ -62,9 +62,11 @@ extension Peregrine {
             defer {
                 do {
                     try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
-                }
-                catch {
-                    print("Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.", .RedBold)
+                } catch {
+                    print(
+                        "Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.",
+                        .RedBold
+                    )
                 }
             }
 
@@ -109,9 +111,11 @@ extension Peregrine {
             defer {
                 do {
                     try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
-                }
-                catch {
-                    print("Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.", .RedBold)
+                } catch {
+                    print(
+                        "Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.",
+                        .RedBold
+                    )
                 }
             }
 

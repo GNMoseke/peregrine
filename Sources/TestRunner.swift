@@ -56,6 +56,7 @@ struct Test: Codable, Hashable {
 struct TestResult {
     let test: Test
     let passed: Bool
+    let skipped: Bool
     // line, failure message
     var errors: [(String, String)]
     var duration: Duration
@@ -185,8 +186,8 @@ class PeregrineRunner: TestRunner {
                 backtraceLines.append(line)
                 collectBacktrace = true
             }
-            let testCompleted = try parseTestLine(line)
-            if testCompleted && !options.quietOutput {
+            try parseTestLine(line)
+            if !options.quietOutput {
                 // TODO: nicer output for test suites less than the progress bar length. This still looks a tad jank.
                 completeTests += 1
                 if testCount < progressBarCharacterLength {
@@ -206,10 +207,12 @@ class PeregrineRunner: TestRunner {
         try testProcess.wait()
 
         // this could maybe be misleading, but finish the bar when tests finish no matter what
-        print(String(
-            repeating: options.symbolOutput.getSymbol(.FilledBlock),
-            count: progressBarCharacterLength
-        ))
+        if !options.quietOutput {
+            print(String(
+                repeating: options.symbolOutput.getSymbol(.FilledBlock),
+                count: progressBarCharacterLength
+            ))
+        }
 
         if try await testProcess.status.terminatedSuccessfully {
             return TestRunOutput(success: true, results: Array(testResults.values), backtraceLines: nil)
@@ -246,7 +249,7 @@ class PeregrineRunner: TestRunner {
                     for (idx, result) in sortedByTime.enumerated() {
                         // TODO: line up the lines, just generally clean up this output
                         print(
-                            "\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded" : "Failed")): \(result.duration)",
+                            "\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded\(result.skipped ? " - Skipped" : "")" : "Failed")): \(result.duration)",
                             result.passed ? .GreenBold : .RedBold
                         )
                     }
@@ -262,8 +265,8 @@ class PeregrineRunner: TestRunner {
         }
     }
 
-    private func parseTestLine(_ line: String) throws -> Bool {
-        // FIXME: pretty brute-force here, should use a regex
+    private func parseTestLine(_ line: String) throws {
+        // TODO: this whole function could use some refactoring
         if line.starts(with: "Test Case") && !line.contains("started at") {
             var processedLine = line
             processedLine.removeFirst("Test Case '".count)
@@ -271,12 +274,8 @@ class PeregrineRunner: TestRunner {
             guard let fullTestName = components.first else {
                 throw TestParseError.unexpectedLineFormat("could not parse completion line: \(line)")
             }
-            // TODO: I do this split a lot, should just write a processing function for it
-            let nameComponents = fullTestName.split(separator: ".")
-            guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
-                throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
-            }
-            let test = Test(suite: String(testSuite), name: String(testName))
+
+            let test = try parseTestFromName(String(fullTestName), line: line)
 
             guard
                 let timeString = processedLine.split(separator: "(").last?.split(separator: " ").first,
@@ -286,16 +285,21 @@ class PeregrineRunner: TestRunner {
             }
 
             if line.contains("passed") {
-                testResults[test] = TestResult(test: test, passed: true, errors: [], duration: .seconds(testDuration))
-                return true
+                testResults[test] = TestResult(
+                    test: test,
+                    passed: true,
+                    skipped: false,
+                    errors: [],
+                    duration: .seconds(testDuration)
+                )
             }
             if line.contains("failed") {
                 testResults[test]?.duration = .seconds(testDuration)
-                return true
             }
             // FIXME: still slightly hacky but less prone to collision - XCT fails output the file name on the line so use that
             // for more uniqueness guarantees
         } else if line.contains("error:") && line.contains(".swift") {
+            // Parse and store the error reason
             let errorComponents = line.split(separator: "error:")
             guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse error line: \(line)")
@@ -312,17 +316,43 @@ class PeregrineRunner: TestRunner {
                     .unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
             }
 
-            let testNameComponents = testName.split(separator: ".")
-            let test = Test(suite: String(testNameComponents.first!), name: String(testNameComponents.last!))
-            testResults[test, default: TestResult(test: test, passed: false, errors: [], duration: .seconds(0))].errors
+            let test = try parseTestFromName(testName, line: line)
+            testResults[
+                test,
+                default: TestResult(test: test, passed: false, skipped: false, errors: [], duration: .seconds(0))
+            ].errors
                 .append((
                     location,
                     String(failure.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
-            return false
+        } else if line.contains("skipped") && line.contains(".swift") {
+            // Parse and store the skip reason
+            // The spaces are important here and this is quite beholden to spm output formatting, just be aware
+            let skippedComponents = line.split(separator: " : ")
+            guard let fullTestName = skippedComponents.first?.split(separator: ": ").last else {
+                throw TestParseError.unexpectedLineFormat("Could not parse skipped test identifier from line: \(line)")
+            }
+            let test = try parseTestFromName(String(fullTestName), line: line)
+            guard let skipReason = skippedComponents.last?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+                throw TestParseError.unexpectedLineFormat("Could not parse skip reason from line: \(line)")
+            }
+            testResults[test] = TestResult(
+                test: test,
+                passed: true,
+                skipped: true,
+                errors: [("", skipReason)],
+                duration: .seconds(0)
+            )
         }
-        return false
     }
+}
+
+private func parseTestFromName(_ testName: String, line: String) throws -> Test {
+    let nameComponents = testName.split(separator: ".")
+    guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
+        throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
+    }
+    return Test(suite: String(testSuite), name: String(testName))
 }
 
 enum TestParseError: Error {

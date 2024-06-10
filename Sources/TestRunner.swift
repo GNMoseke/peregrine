@@ -71,9 +71,11 @@ protocol TestRunner {
 class PeregrineRunner: TestRunner {
     var options: TestOptions
     var testResults: [Test: TestResult] = [:]
+    private let packagePathPrefix: String
 
     init(options: TestOptions) {
         self.options = options
+        packagePathPrefix = (Foundation.URL(string: options.packagePath)?.path ?? "") + "/"
     }
 
     func listTests() async throws -> [Test] {
@@ -156,10 +158,6 @@ class PeregrineRunner: TestRunner {
             throw PeregrineError.couldNotFindSwiftExecutable
         }
 
-        if !options.quietOutput {
-            print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
-        }
-
         let progressBarCharacterLength = 45
         let stepSize: Int = testCount < progressBarCharacterLength ? progressBarCharacterLength / testCount :
             testCount /
@@ -171,9 +169,11 @@ class PeregrineRunner: TestRunner {
         )
 
         if !options.quietOutput {
+            print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
             print(progressBar, terminator: "\r")
             fflush(nil)
         }
+
         var backtraceLines = [String]()
         var collectBacktrace = false
         // TODO: clean this up, very heavy-handed processing
@@ -300,7 +300,9 @@ class PeregrineRunner: TestRunner {
             guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse error line: \(line)")
             }
-            let location = String(errorLocation.trimmingCharacters(in: [":", " "]))
+
+            var location = String(errorLocation.trimmingCharacters(in: [":", " "]))
+            location.removeFirst(packagePathPrefix.count)
             let failureComponents = testAndFail.split(separator: ":")
             guard
                 let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces),
@@ -309,6 +311,7 @@ class PeregrineRunner: TestRunner {
                 throw TestParseError
                     .unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
             }
+
             let testNameComponents = testName.split(separator: ".")
             let test = Test(suite: String(testNameComponents.first!), name: String(testNameComponents.last!))
             testResults[test, default: TestResult(test: test, passed: false, errors: [], duration: .seconds(0))].errors

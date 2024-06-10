@@ -14,3 +14,4 @@ peregrine --help
 
 ## Known Issues
 - Passing through the spm `--filter` or `--skip` flags causes the progress bar to behave unexpectedly - this is due to these flags not being respected by `swift test list`
+- If peregrine crashes, the shell cursor may remain hidden. Run `tput cnorm` to fix

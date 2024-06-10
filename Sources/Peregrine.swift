@@ -57,12 +57,15 @@ extension Peregrine {
         mutating func run() async throws {
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
 
-            // FIXME: there's a potential annoyance here where if peregrine crashes, the tput cnorm won't run
-            // I'm also waffling on if this clear/hide should happen in quiet mode or not. Letting it happen right now.
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
             defer {
-                try! Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
+                do {
+                    try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
+                }
+                catch {
+                    print("Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.", .RedBold)
+                }
             }
 
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
@@ -101,6 +104,17 @@ extension Peregrine {
 
         // Thinking about a "compare by revision" option?
         mutating func run() async throws {
+            try Command.findInPath(withName: "clear")?.wait()
+            try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
+            defer {
+                do {
+                    try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
+                }
+                catch {
+                    print("Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.", .RedBold)
+                }
+            }
+
             print("=== PEREGRINE - COUNTING TESTS ===", .CyanBold)
             let tests = try await PeregrineRunner(options: TestOptions(
                 toolchainPath: options.toolchain,

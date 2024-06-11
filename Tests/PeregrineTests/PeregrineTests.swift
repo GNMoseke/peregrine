@@ -52,6 +52,8 @@ class PeregrineTests: XCTestCase {
         XCTAssertTrue(output.results.map { $0.errors }.reduce([], +).isEmpty)
     }
 
+    // TODO: add test for skipped test parsing
+
     func testRunSingleFail() async throws {
         // Test normal single failed XCT*
         runner.options = TestOptions(

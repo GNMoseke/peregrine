@@ -100,7 +100,7 @@ class PeregrineRunner: TestRunner {
                         terminator: "\r",
                         .CyanBold
                     )
-                    try await Task.sleep(for: .milliseconds(10.0))
+                    try await Task.sleep(for: .milliseconds(100.0))
                     fflush(nil)
                     iteration += 1
                 }
@@ -188,8 +188,7 @@ class PeregrineRunner: TestRunner {
                 backtraceLines.append(line)
                 collectBacktrace = true
             }
-            try parseTestLine(line)
-            if !options.quietOutput {
+            if try parseTestLine(line) && !options.quietOutput {
                 // TODO: nicer output for test suites less than the progress bar length. This still looks a tad jank.
                 completeTests += 1
                 if testCount < progressBarCharacterLength {
@@ -267,7 +266,8 @@ class PeregrineRunner: TestRunner {
         }
     }
 
-    private func parseTestLine(_ line: String) throws {
+    /// Returns true if the line indicated a completed test
+    private func parseTestLine(_ line: String) throws -> Bool {
         // TODO: this whole function could use some refactoring
         if line.starts(with: "Test Case") && !line.contains("started") {
             var processedLine = line
@@ -294,12 +294,15 @@ class PeregrineRunner: TestRunner {
                     errors: [],
                     duration: .seconds(testDuration)
                 )
+                return true
             }
             if line.contains("failed") {
                 testResults[test]?.duration = .seconds(testDuration)
+                return false
             }
             // FIXME: still slightly hacky but less prone to collision - XCT fails output the file name on the line so use that
             // for more uniqueness guarantees
+            return false
         } else if line.contains("error:") && line.contains(".swift") {
             // Parse and store the error reason
             let errorComponents = line.split(separator: "error:")
@@ -327,6 +330,7 @@ class PeregrineRunner: TestRunner {
                     location,
                     String(failure.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
+            return false
         } else if line.contains("skipped") && line.contains(".swift") {
             // Parse and store the skip reason
             // The spaces are important here and this is quite beholden to spm output formatting, just be aware
@@ -345,7 +349,9 @@ class PeregrineRunner: TestRunner {
                 errors: [("", skipReason)],
                 duration: .seconds(0)
             )
+            return false
         }
+        return false
     }
 }
 

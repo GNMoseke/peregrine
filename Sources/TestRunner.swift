@@ -269,7 +269,7 @@ class PeregrineRunner: TestRunner {
 
     private func parseTestLine(_ line: String) throws {
         // TODO: this whole function could use some refactoring
-        if line.starts(with: "Test Case") && !line.contains("started at") {
+        if line.starts(with: "Test Case") && !line.contains("started") {
             var processedLine = line
             processedLine.removeFirst("Test Case '".count)
             let components = processedLine.split(separator: "'")

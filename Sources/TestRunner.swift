@@ -132,6 +132,8 @@ class PeregrineRunner: TestRunner {
             }
             tests.append(Test(suite: String(testSuite), name: String(testName)))
         }
+
+        try listProcess.wait()
         buildingTask.cancel()
         return tests
     }

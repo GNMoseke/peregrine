@@ -60,14 +60,7 @@ extension Peregrine {
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
             defer {
-                do {
-                    try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
-                } catch {
-                    print(
-                        "Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.",
-                        .RedBold
-                    )
-                }
+                tputCnorm()
             }
 
             // Want to do junit xml output and parsing, options for showing longest running tests, etc
@@ -89,9 +82,29 @@ extension Peregrine {
                 )
             )
             let testRunner = PeregrineRunner(options: testOptions)
-            let tests = try await testRunner.listTests()
-            let testResults = try await testRunner.runTests(tests: tests)
-            try testRunner.output(results: testResults)
+            do {
+                let tests = try await testRunner.listTests()
+                let testResults = try await testRunner.runTests(tests: tests)
+                try testRunner.output(results: testResults)
+            } catch let TestParseError.unexpectedLineFormat(errDetail) {
+                print("""
+                peregrine ran into an issue when running: \(errDetail)
+
+                Please submit a bug report at TODO
+                Please include the logs found at TODO
+                """, .RedBold)
+            } catch TestParseError.buildFailure {
+                tputCnorm()
+                Foundation.exit(1)
+            } catch TestParseError.notSwiftPackage {
+                print("Given path \(options.path) does not appear to be a swift package.", .RedBold)
+                tputCnorm()
+                Foundation.exit(2)
+            } catch PeregrineError.couldNotFindSwiftExecutable {
+                print("peregrine could not find the swift executable in your path or at the given toolchain", .RedBold)
+                tputCnorm()
+                Foundation.exit(3)
+            }
         }
 
         private func getSwiftVersion() throws -> String {
@@ -136,6 +149,17 @@ extension Peregrine {
                 )
             }
         }
+    }
+}
+
+private func tputCnorm() {
+    do {
+        try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
+    } catch {
+        print(
+            "Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.",
+            .RedBold
+        )
     }
 }
 

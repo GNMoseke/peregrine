@@ -84,8 +84,7 @@ class PeregrineRunner: TestRunner {
             FileManager.default
                 .fileExists(atPath: options.packagePath + (options.packagePath.last == "/" ? "" : "/") + "Package.swift")
         else {
-            print("Given path \(options.packagePath) does not appear to be a swift package.", .RedBold)
-            exit(1)
+            throw TestParseError.notSwiftPackage
         }
 
         let buildingTask = Task {
@@ -145,7 +144,7 @@ class PeregrineRunner: TestRunner {
         }
 
         try listProcess.wait()
-        if try await listProcess.status.exitCode != 0 {
+        if try !(await listProcess.status.terminatedSuccessfully) {
             print("=== BUILD FAILED ===", .RedBold)
             print(buildFailLines.joined(separator: "\n"), .RedBold)
             buildingTask.cancel()
@@ -382,5 +381,6 @@ private func parseTestFromName(_ testName: String, line: String) throws -> Test 
 
 enum TestParseError: Error {
     case unexpectedLineFormat(String)
+    case notSwiftPackage
     case buildFailure
 }

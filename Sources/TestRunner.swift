@@ -133,10 +133,21 @@ class PeregrineRunner: TestRunner {
             tests.append(Test(suite: String(testSuite), name: String(testName)))
         }
 
+        var collectBuildFailure = false
+        var buildFailLines: [String] = []
+        for try await line in listProcess.stderr.lines {
+            if collectBuildFailure {
+                buildFailLines.append(line)
+            }
+            if line.contains("error:") && !collectBuildFailure {
+                collectBuildFailure = true
+            }
+        }
+
         try listProcess.wait()
         if try await listProcess.status.exitCode != 0 {
             print("=== BUILD FAILED ===", .RedBold)
-            print(try await listProcess.output.stderr ?? "Unknown Build Failure", .RedBold)
+            print(buildFailLines.joined(separator: "\n"), .RedBold)
             buildingTask.cancel()
             throw TestParseError.buildFailure
         }

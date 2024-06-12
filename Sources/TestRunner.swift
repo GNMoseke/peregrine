@@ -134,6 +134,12 @@ class PeregrineRunner: TestRunner {
         }
 
         try listProcess.wait()
+        if try await listProcess.status.exitCode != 0 {
+            print("=== BUILD FAILED ===", .RedBold)
+            print(try await listProcess.output.stderr ?? "Unknown Build Failure", .RedBold)
+            buildingTask.cancel()
+            throw TestParseError.buildFailure
+        }
         buildingTask.cancel()
         return tests
     }
@@ -365,4 +371,5 @@ private func parseTestFromName(_ testName: String, line: String) throws -> Test 
 
 enum TestParseError: Error {
     case unexpectedLineFormat(String)
+    case buildFailure
 }

@@ -106,6 +106,10 @@ class PeregrineRunner: TestRunner {
             }
         }
 
+        defer {
+            buildingTask.cancel()
+        }
+
         guard
             let listProcess = try (
                 options.toolchainPath == nil ? Command
@@ -150,7 +154,6 @@ class PeregrineRunner: TestRunner {
             buildingTask.cancel()
             throw TestParseError.buildFailure
         }
-        buildingTask.cancel()
         return tests
     }
 

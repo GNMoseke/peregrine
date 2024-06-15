@@ -1,4 +1,5 @@
 import Foundation
+import Puppy
 import SwiftCommand
 
 struct TestRunOutput {
@@ -72,18 +73,24 @@ protocol TestRunner {
 class PeregrineRunner: TestRunner {
     var options: TestOptions
     var testResults: [Test: TestResult] = [:]
+
+    private let logger: Puppy
     private let packagePathPrefix: String
 
-    init(options: TestOptions) {
+    init(options: TestOptions, logger: Puppy) {
         self.options = options
-        packagePathPrefix = (Foundation.URL(string: options.packagePath)?.path ?? "") + "/"
+        self.logger = logger
+        packagePathPrefix = (Foundation.URL(string: options.packagePath)?.path ?? "") +
+            (options.packagePath.last == "/" ? "" : "/")
     }
 
     func listTests() async throws -> [Test] {
+        logger.info("Listing Tests at \(options.packagePath)")
         guard
             FileManager.default
                 .fileExists(atPath: options.packagePath + (options.packagePath.last == "/" ? "" : "/") + "Package.swift")
         else {
+            logger.error("Path given was not a swift package")
             throw TestParseError.notSwiftPackage
         }
 
@@ -92,6 +99,7 @@ class PeregrineRunner: TestRunner {
                 let spinnerStates = ["/", "-", #"\"#, "|"]
                 var iteration = 0
                 while true {
+                    logger.trace("Rotating spinner...")
                     if Task.isCancelled { return }
                     print(
                         options.symbolOutput
@@ -108,6 +116,7 @@ class PeregrineRunner: TestRunner {
 
         defer {
             buildingTask.cancel()
+            logger.debug("Spinner cancelled")
         }
 
         guard
@@ -126,6 +135,7 @@ class PeregrineRunner: TestRunner {
 
         var tests = [Test]()
         for try await line in listProcess.stdout.lines {
+            logger.trace("swift test list stdout: \(line)")
             guard let remainder = line.split(separator: ".").last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
             }
@@ -133,27 +143,34 @@ class PeregrineRunner: TestRunner {
             guard let testSuite = suiteAndName.first, let testName = suiteAndName.last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
             }
-            tests.append(Test(suite: String(testSuite), name: String(testName)))
+            let test = Test(suite: String(testSuite), name: String(testName))
+            logger.debug("Found test: \(test)")
+            tests.append(test)
         }
 
         var collectBuildFailure = false
         var buildFailLines: [String] = []
         for try await line in listProcess.stderr.lines {
+            logger.trace("swift test list stderr: \(line)")
             if collectBuildFailure {
                 buildFailLines.append(line)
             }
-            if line.contains("error:") && !collectBuildFailure {
+            if !collectBuildFailure && line.contains("error:") && line.contains(".swift") {
+                logger.debug("Build failure found, collecting remaining stderr")
                 collectBuildFailure = true
             }
         }
 
-        try listProcess.wait()
-        if try !(await listProcess.status.terminatedSuccessfully) {
+        let status = try await listProcess.status
+        // NOTE: the SwiftCommand package uses `nil` to represent a successful exit code of 0, which is a little
+        // confusing
+        logger.info("Build/List finished with code \(status.exitCode ?? 0)")
+        if !(status.terminatedSuccessfully) {
             print("=== BUILD FAILED ===", .RedBold)
             print(buildFailLines.joined(separator: "\n"), .RedBold)
-            buildingTask.cancel()
             throw TestParseError.buildFailure
         }
+        logger.trace("Found tests: \(tests)")
         return tests
     }
 
@@ -200,10 +217,12 @@ class PeregrineRunner: TestRunner {
         var collectBacktrace = false
         // TODO: clean this up, very heavy-handed processing
         for try await line in testProcess.stdout.lines {
+            logger.trace("swift test stdout: \(line)")
             if collectBacktrace {
                 backtraceLines.append(line)
                 continue
             } else if line.contains("Fatal error:") {
+                // FIXME: There are other cases for crash as well, the above is for fatalerror/try!
                 backtraceLines.append(line)
                 collectBacktrace = true
             }
@@ -224,7 +243,6 @@ class PeregrineRunner: TestRunner {
                 }
             }
         }
-        try testProcess.wait()
 
         // this could maybe be misleading, but finish the bar when tests finish no matter what
         if !options.quietOutput {
@@ -234,7 +252,11 @@ class PeregrineRunner: TestRunner {
             ))
         }
 
-        if try await testProcess.status.terminatedSuccessfully {
+        let status = try await testProcess.status
+        // NOTE: the SwiftCommand package uses `nil` to represent a successful exit code of 0, which is a little
+        // confusing
+        logger.info("Tests finished with code \(status.exitCode ?? 0)")
+        if status.terminatedSuccessfully {
             return TestRunOutput(success: true, results: Array(testResults.values), backtraceLines: nil)
         } else {
             return TestRunOutput(

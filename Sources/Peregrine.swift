@@ -1,15 +1,17 @@
 import ArgumentParser
 import Foundation
+import Puppy
 import SwiftCommand
 
 @main
 struct Peregrine: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A utility for clearer swift test output.",
-        version: "0.1.0",
+        version: "0.3.0",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
     )
+
     struct GlobalOptions: ParsableArguments {
         @Argument(help: "Path to swift package.")
         var path: String = "."
@@ -25,6 +27,9 @@ struct Peregrine: AsyncParsableCommand {
 
         @Flag(help: "Supress toolchain information & progress output")
         var quiet: Bool = false
+
+        @Option(help: "Control Peregrine's log level.")
+        var logLevel: LogLevel = .debug
     }
 }
 
@@ -57,13 +62,15 @@ extension Peregrine {
         mutating func run() async throws {
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
 
+            let logger = try configureLogging(options.logLevel)
+            logger.info("Executing Tests")
+
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
             defer {
                 tputCnorm()
             }
 
-            // Want to do junit xml output and parsing, options for showing longest running tests, etc
             if !options.quiet {
                 print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
                 try print(getSwiftVersion(), .Cyan)
@@ -81,30 +88,16 @@ extension Peregrine {
                     outputPath: longestTestOutputPath
                 )
             )
-            let testRunner = PeregrineRunner(options: testOptions)
-            do {
+            logger.debug("Running with options: \(testOptions)")
+            let testRunner = PeregrineRunner(options: testOptions, logger: logger)
+            try await handle {
                 let tests = try await testRunner.listTests()
                 let testResults = try await testRunner.runTests(tests: tests)
                 try testRunner.output(results: testResults)
-            } catch let TestParseError.unexpectedLineFormat(errDetail) {
-                print("""
-                peregrine ran into an issue when running: \(errDetail)
-
-                Please submit a bug report at TODO
-                Please include the logs found at TODO
-                """, .RedBold)
-            } catch TestParseError.buildFailure {
-                tputCnorm()
-                Foundation.exit(1)
-            } catch TestParseError.notSwiftPackage {
-                print("Given path \(options.path) does not appear to be a swift package.", .RedBold)
-                tputCnorm()
-                Foundation.exit(2)
-            } catch PeregrineError.couldNotFindSwiftExecutable {
-                print("peregrine could not find the swift executable in your path or at the given toolchain", .RedBold)
-                tputCnorm()
-                Foundation.exit(3)
             }
+
+            // only cleanup on fully successful run
+            try cleanupLogFile()
         }
 
         private func getSwiftVersion() throws -> String {
@@ -119,36 +112,57 @@ extension Peregrine {
 
         // Thinking about a "compare by revision" option?
         mutating func run() async throws {
+            let logger = try configureLogging(options.logLevel)
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
             defer {
-                do {
-                    try Command.findInPath(withName: "tput")?.addArgument("cnorm").wait()
-                } catch {
+                tputCnorm()
+            }
+
+            try await handle {
+                print("=== PEREGRINE - COUNTING TESTS ===", .CyanBold)
+                let tests = try await PeregrineRunner(options: TestOptions(
+                    toolchainPath: options.toolchain,
+                    packagePath: options.path,
+                    plaintextOutput: options.plaintextOutput
+                ), logger: logger).listTests()
+                let testsBySuite = Dictionary(grouping: tests, by: \.suite)
+                print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .GreenBold)
+                if groupBySuite {
+                    print(String(repeating: "-", count: 50), .GreenBold)
                     print(
-                        "Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.",
-                        .RedBold
+                        testsBySuite.sorted(by: { $0.value.count > $1.value.count })
+                            .map { "\($0.key): \($0.value.count)" }
+                            .joined(separator: "\n"),
+                        .GreenBold
                     )
                 }
             }
 
-            print("=== PEREGRINE - COUNTING TESTS ===", .CyanBold)
-            let tests = try await PeregrineRunner(options: TestOptions(
-                toolchainPath: options.toolchain,
-                packagePath: options.path,
-                plaintextOutput: options.plaintextOutput
-            )).listTests()
-            let testsBySuite = Dictionary(grouping: tests, by: \.suite)
-            print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .GreenBold)
-            if groupBySuite {
-                print(String(repeating: "-", count: 50), .GreenBold)
-                print(
-                    testsBySuite.sorted(by: { $0.value.count > $1.value.count }).map { "\($0.key): \($0.value.count)" }
-                        .joined(separator: "\n"),
-                    .GreenBold
-                )
-            }
+            // only cleanup on fully successful run
+            try cleanupLogFile()
         }
+    }
+}
+
+private func handle(_ peregrineOperation: () async throws -> Void) async throws {
+    do {
+        try await peregrineOperation()
+    } catch let TestParseError.unexpectedLineFormat(errDetail) {
+        print("""
+        peregrine ran into an issue when running: \(errDetail)
+
+        Please submit a bug report at https://github.com/GNMoseke/peregrine/issues
+        Please include the logs found at /tmp/peregrine.log
+        """, .RedBold)
+    } catch TestParseError.buildFailure {
+        Foundation.exit(1)
+    } catch TestParseError.notSwiftPackage {
+        print("Given path does not appear to be a swift package - no Package.swift file found.", .RedBold)
+        Foundation.exit(2)
+    } catch PeregrineError.couldNotFindSwiftExecutable {
+        print("peregrine could not find the swift executable in your path or at the given toolchain", .RedBold)
+        Foundation.exit(3)
     }
 }
 
@@ -166,3 +180,5 @@ private func tputCnorm() {
 enum PeregrineError: Error {
     case couldNotFindSwiftExecutable
 }
+
+extension LogLevel: ExpressibleByArgument {}

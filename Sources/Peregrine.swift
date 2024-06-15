@@ -7,7 +7,7 @@ import SwiftCommand
 struct Peregrine: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A utility for clearer swift test output.",
-        version: "0.2.0",
+        version: "0.3.0",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
     )

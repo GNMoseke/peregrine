@@ -1,15 +1,17 @@
 import ArgumentParser
 import Foundation
+import Puppy
 import SwiftCommand
 
 @main
 struct Peregrine: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A utility for clearer swift test output.",
-        version: "0.1.0",
+        version: "0.2.0",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
     )
+
     struct GlobalOptions: ParsableArguments {
         @Argument(help: "Path to swift package.")
         var path: String = "."
@@ -25,6 +27,9 @@ struct Peregrine: AsyncParsableCommand {
 
         @Flag(help: "Supress toolchain information & progress output")
         var quiet: Bool = false
+
+        @Option(help: "Control Peregrine's log level.")
+        var logLevel: LogLevel = .debug
     }
 }
 
@@ -57,6 +62,9 @@ extension Peregrine {
         mutating func run() async throws {
             // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
 
+            let logger = try configureLogging(options.logLevel)
+            logger.info("Executing Tests")
+
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
             defer {
@@ -81,7 +89,8 @@ extension Peregrine {
                     outputPath: longestTestOutputPath
                 )
             )
-            let testRunner = PeregrineRunner(options: testOptions)
+            logger.debug("Running with options: \(testOptions)")
+            let testRunner = PeregrineRunner(options: testOptions, logger: logger)
             do {
                 let tests = try await testRunner.listTests()
                 let testResults = try await testRunner.runTests(tests: tests)
@@ -91,7 +100,7 @@ extension Peregrine {
                 peregrine ran into an issue when running: \(errDetail)
 
                 Please submit a bug report at TODO
-                Please include the logs found at TODO
+                Please include the logs found at /tmp/peregrine.log
                 """, .RedBold)
             } catch TestParseError.buildFailure {
                 tputCnorm()
@@ -119,6 +128,7 @@ extension Peregrine {
 
         // Thinking about a "compare by revision" option?
         mutating func run() async throws {
+            let logger = try configureLogging(options.logLevel)
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()
             defer {
@@ -137,7 +147,7 @@ extension Peregrine {
                 toolchainPath: options.toolchain,
                 packagePath: options.path,
                 plaintextOutput: options.plaintextOutput
-            )).listTests()
+            ), logger: logger).listTests()
             let testsBySuite = Dictionary(grouping: tests, by: \.suite)
             print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .GreenBold)
             if groupBySuite {
@@ -166,3 +176,5 @@ private func tputCnorm() {
 enum PeregrineError: Error {
     case couldNotFindSwiftExecutable
 }
+
+extension LogLevel: ExpressibleByArgument {}

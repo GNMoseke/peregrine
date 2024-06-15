@@ -15,6 +15,10 @@ func configureLogging(_ level: LogLevel) throws -> Puppy {
     return logger
 }
 
+func cleanupLogFile() throws {
+    try FileManager.default.removeItem(at: URL(fileURLWithPath: "/tmp/peregrine.log").absoluteURL)
+}
+
 // pretty much the default from the readme in puppy for now
 struct LogFormatter: LogFormattable {
     func formatMessage(

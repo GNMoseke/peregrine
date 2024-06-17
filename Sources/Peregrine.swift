@@ -96,8 +96,9 @@ extension Peregrine {
                 try testRunner.output(results: testResults)
             }
 
+
             // only cleanup on fully successful run
-            try cleanupLogFile()
+            try cleanupLogFile(logger: logger)
         }
 
         private func getSwiftVersion() throws -> String {
@@ -140,7 +141,7 @@ extension Peregrine {
             }
 
             // only cleanup on fully successful run
-            try cleanupLogFile()
+            try cleanupLogFile(logger: logger)
         }
     }
 }

@@ -15,7 +15,9 @@ func configureLogging(_ level: LogLevel) throws -> Puppy {
     return logger
 }
 
-func cleanupLogFile() throws {
+func cleanupLogFile(logger: Puppy) throws {
+    // ensure we fully flush anything left before removing the file
+    _ = logger.flush()
     try FileManager.default.removeItem(at: URL(fileURLWithPath: "/tmp/peregrine.log").absoluteURL)
 }
 

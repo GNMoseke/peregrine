@@ -5,7 +5,7 @@ class PeregrineTests: XCTestCase {
     var runner: PeregrineRunner!
     let testPackagePath = "TestPackage/"
 
-    override func setUp() {
+    override func setUpWithError() throws {
         let testOptions = TestOptions(
             toolchainPath: nil,
             packagePath: testPackagePath,
@@ -19,7 +19,7 @@ class PeregrineTests: XCTestCase {
             )
         )
 
-        runner = PeregrineRunner(options: testOptions)
+        runner = try PeregrineRunner(options: testOptions, logger: configureLogging(.debug))
     }
 
     func testParseList() async throws {

@@ -3,6 +3,7 @@ import Puppy
 
 func configureLogging(_ level: LogLevel) throws -> Puppy {
     // TODO: logfile per project
+    // And also make this nicer for unit tests
     let logFormat = LogFormatter()
     let fileLogger = try FileLogger(
         "com.peregrine",

@@ -82,7 +82,7 @@ extension Peregrine {
             }
             let testOptions = TestOptions(
                 toolchainPath: options.toolchain,
-                packagePath: options.path,
+                packagePath: URL(fileURLWithPath: options.path, isDirectory: true).path,
                 plaintextOutput: options.plaintextOutput,
                 quietOutput: options.quiet,
                 additionalSwiftFlags: swiftFlags,

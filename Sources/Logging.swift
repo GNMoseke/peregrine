@@ -1,8 +1,14 @@
+// Logging.swift
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import Foundation
 import Puppy
 
 func configureLogging(_ level: LogLevel) throws -> Puppy {
     // TODO: logfile per project
+    // And also make this nicer for unit tests
     let logFormat = LogFormatter()
     let fileLogger = try FileLogger(
         "com.peregrine",

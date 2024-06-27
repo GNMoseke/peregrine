@@ -1,3 +1,8 @@
+// Peregrine.swift
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import ArgumentParser
 import Foundation
 import Puppy
@@ -77,7 +82,7 @@ extension Peregrine {
             }
             let testOptions = TestOptions(
                 toolchainPath: options.toolchain,
-                packagePath: options.path,
+                packagePath: URL(fileURLWithPath: options.path, isDirectory: true).path,
                 plaintextOutput: options.plaintextOutput,
                 quietOutput: options.quiet,
                 additionalSwiftFlags: swiftFlags,
@@ -95,7 +100,6 @@ extension Peregrine {
                 let testResults = try await testRunner.runTests(tests: tests)
                 try testRunner.output(results: testResults)
             }
-
 
             // only cleanup on fully successful run
             try cleanupLogFile(logger: logger)

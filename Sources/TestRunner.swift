@@ -1,3 +1,8 @@
+// TestRunner.swift
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import Foundation
 import Puppy
 import SwiftCommand
@@ -94,23 +99,22 @@ class PeregrineRunner: TestRunner {
             throw TestParseError.notSwiftPackage
         }
 
-        let buildingTask = Task {
-            if !options.quietOutput {
+        let buildingTask = Task(priority: .utility) {
+            if !self.options.quietOutput {
                 let spinnerStates = ["/", "-", #"\"#, "|"]
                 var iteration = 0
-                while true {
-                    logger.trace("Rotating spinner...")
-                    if Task.isCancelled { return }
+                repeat {
+                    self.logger.trace("Rotating spinner...")
                     print(
-                        options.symbolOutput
+                        self.options.symbolOutput
                             .getSymbol(.Build) + " Building... \(spinnerStates[iteration % spinnerStates.count])",
                         terminator: "\r",
                         .CyanBold
                     )
-                    try await Task.sleep(for: .milliseconds(100.0))
                     fflush(nil)
                     iteration += 1
-                }
+                    try? await Task.sleep(for: .milliseconds(100.0))
+                } while !Task.isCancelled
             }
         }
 

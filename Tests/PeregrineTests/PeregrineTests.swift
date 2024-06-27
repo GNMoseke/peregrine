@@ -1,3 +1,8 @@
+// PeregrineTests.swift
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 @testable import peregrine
 import XCTest
 
@@ -5,7 +10,7 @@ class PeregrineTests: XCTestCase {
     var runner: PeregrineRunner!
     let testPackagePath = "TestPackage/"
 
-    override func setUp() {
+    override func setUpWithError() throws {
         let testOptions = TestOptions(
             toolchainPath: nil,
             packagePath: testPackagePath,
@@ -19,7 +24,7 @@ class PeregrineTests: XCTestCase {
             )
         )
 
-        runner = PeregrineRunner(options: testOptions)
+        runner = try PeregrineRunner(options: testOptions, logger: configureLogging(.debug))
     }
 
     func testParseList() async throws {

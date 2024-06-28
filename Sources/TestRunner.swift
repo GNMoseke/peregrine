@@ -137,6 +137,19 @@ class PeregrineRunner: TestRunner {
             throw PeregrineError.couldNotFindSwiftExecutable
         }
 
+        var collectBuildFailure = false
+        var buildFailLines: [String] = []
+        for try await line in listProcess.stderr.lines {
+            logger.trace("swift test list stderr: \(line)")
+            if collectBuildFailure {
+                buildFailLines.append(line)
+            }
+            if !collectBuildFailure && line.contains("error:") && line.contains(".swift") {
+                logger.debug("Build failure found, collecting remaining stderr")
+                collectBuildFailure = true
+            }
+        }
+
         var tests = [Test]()
         for try await line in listProcess.stdout.lines {
             logger.trace("swift test list stdout: \(line)")
@@ -150,19 +163,6 @@ class PeregrineRunner: TestRunner {
             let test = Test(suite: String(testSuite), name: String(testName))
             logger.debug("Found test: \(test)")
             tests.append(test)
-        }
-
-        var collectBuildFailure = false
-        var buildFailLines: [String] = []
-        for try await line in listProcess.stderr.lines {
-            logger.trace("swift test list stderr: \(line)")
-            if collectBuildFailure {
-                buildFailLines.append(line)
-            }
-            if !collectBuildFailure && line.contains("error:") && line.contains(".swift") {
-                logger.debug("Build failure found, collecting remaining stderr")
-                collectBuildFailure = true
-            }
         }
 
         let status = try await listProcess.status

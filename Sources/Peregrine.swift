@@ -160,13 +160,18 @@ private func handle(_ peregrineOperation: () async throws -> Void) async throws 
         Please submit a bug report at https://github.com/GNMoseke/peregrine/issues
         Please include the logs found at /tmp/peregrine.log
         """, .RedBold)
+        tputCnorm()
+        Foundation.exit(4)
     } catch TestParseError.buildFailure {
+        tputCnorm()
         Foundation.exit(1)
     } catch TestParseError.notSwiftPackage {
         print("Given path does not appear to be a swift package - no Package.swift file found.", .RedBold)
+        tputCnorm()
         Foundation.exit(2)
     } catch PeregrineError.couldNotFindSwiftExecutable {
         print("peregrine could not find the swift executable in your path or at the given toolchain", .RedBold)
+        tputCnorm()
         Foundation.exit(3)
     }
 }

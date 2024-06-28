@@ -137,34 +137,52 @@ class PeregrineRunner: TestRunner {
             throw PeregrineError.couldNotFindSwiftExecutable
         }
 
-        var tests = [Test]()
-        for try await line in listProcess.stdout.lines {
-            logger.trace("swift test list stdout: \(line)")
-            guard let remainder = line.split(separator: ".").last else {
-                throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
+        let (tests, buildFailLines) = try await withThrowingTaskGroup(of: ([Test], [String]).self) { group in
+            group.addTask {
+                var buildFailLines: [String] = []
+                var collectBuildFailure = false
+                for try await line in listProcess.stderr.lines {
+                    self.logger.debug("swift test list stderr: \(line)")
+                    if collectBuildFailure {
+                        buildFailLines.append(line)
+                    }
+                    if !collectBuildFailure && line.contains("error:") && line.contains(".swift") {
+                        self.logger.debug("Build failure found, collecting remaining stderr")
+                        collectBuildFailure = true
+                    }
+                }
+                self.logger.debug("past the stderr loop")
+                return ([], buildFailLines)
             }
-            let suiteAndName = remainder.split(separator: "/")
-            guard let testSuite = suiteAndName.first, let testName = suiteAndName.last else {
-                throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
+            group.addTask {
+                var tests = [Test]()
+                for try await line in listProcess.stdout.lines {
+                    self.logger.info("swift test list stdout: \(line)")
+                    guard let remainder = line.split(separator: ".").last else {
+                        throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
+                    }
+                    let suiteAndName = remainder.split(separator: "/")
+                    guard let testSuite = suiteAndName.first, let testName = suiteAndName.last else {
+                        throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
+                    }
+                    let test = Test(suite: String(testSuite), name: String(testName))
+                    self.logger.info("Found test: \(test)")
+                    tests.append(test)
+                }
+                self.logger.debug("past the stdout loop")
+                return (tests, [])
             }
-            let test = Test(suite: String(testSuite), name: String(testName))
-            logger.debug("Found test: \(test)")
-            tests.append(test)
+
+            var foundTests = Set<Test>()
+            var buildIssueLines = Set<String>()
+            for try await (tests, buildErrors) in group {
+                tests.forEach { foundTests.insert($0) }
+                buildErrors.forEach { buildIssueLines.insert($0) }
+            }
+            return (Array(foundTests), Array(buildIssueLines))
         }
 
-        var collectBuildFailure = false
-        var buildFailLines: [String] = []
-        for try await line in listProcess.stderr.lines {
-            logger.trace("swift test list stderr: \(line)")
-            if collectBuildFailure {
-                buildFailLines.append(line)
-            }
-            if !collectBuildFailure && line.contains("error:") && line.contains(".swift") {
-                logger.debug("Build failure found, collecting remaining stderr")
-                collectBuildFailure = true
-            }
-        }
-
+        logger.debug("awaiting status")
         let status = try await listProcess.status
         // NOTE: the SwiftCommand package uses `nil` to represent a successful exit code of 0, which is a little
         // confusing

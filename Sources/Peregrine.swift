@@ -160,6 +160,7 @@ private func handle(_ peregrineOperation: () async throws -> Void) async throws 
         Please submit a bug report at https://github.com/GNMoseke/peregrine/issues
         Please include the logs found at /tmp/peregrine.log
         """, .RedBold)
+        Foundation.exit(4)
     } catch TestParseError.buildFailure {
         Foundation.exit(1)
     } catch TestParseError.notSwiftPackage {

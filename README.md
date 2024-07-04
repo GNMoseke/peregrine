@@ -31,7 +31,7 @@ PRs are always welcome! There is a lot of work going on in the swift testing spa
 
 ## Known Issues
 - Passing through the spm `--filter` or `--skip` flags causes the progress bar to behave unexpectedly - this is due to these flags not being respected by `swift test list`. **Test success/failure output is unaffected, and will work with these flags.**
-- If peregrine crashes, the shell cursor may remain hidden. Run `tput cnorm` to fix
+- If peregrine crashes (or is terminated cia something other than `SIGINT`, `SIGQUIT`, or `SIGSTOP`, the shell cursor may remain hidden. Run `tput cnorm` to fix
 
 ## Why?
 peregrine was born out of my personal need for some simple things in relation to swift testing - namely:

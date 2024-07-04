@@ -65,7 +65,26 @@ extension Peregrine {
         var swiftFlags: [String] = []
 
         mutating func run() async throws {
-            // TODO: ? Potentially allow config by yaml in root of package - may be unnnecessary for so few options
+            // NOTE: This feels potentially like the incorrect way to handle this - didn't want to adopt the full
+            // swift-server/lifecycle package
+            let sigIntHandler = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
+            sigIntHandler.setEventHandler {
+                tputCnorm()
+                Foundation.exit(SIGINT)
+            }
+            sigIntHandler.resume()
+            let sigQuitHandler = DispatchSource.makeSignalSource(signal: SIGQUIT, queue: .global())
+            sigQuitHandler.setEventHandler {
+                tputCnorm()
+                Foundation.exit(SIGQUIT)
+            }
+            sigQuitHandler.resume()
+            let sigStopHandler = DispatchSource.makeSignalSource(signal: SIGSTOP, queue: .global())
+            sigStopHandler.setEventHandler {
+                tputCnorm()
+                Foundation.exit(SIGSTOP)
+            }
+            sigStopHandler.resume()
 
             let logger = try configureLogging(options.logLevel)
             logger.info("Executing Tests")
@@ -117,6 +136,24 @@ extension Peregrine {
 
         // Thinking about a "compare by revision" option?
         mutating func run() async throws {
+            let sigIntHandler = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
+            sigIntHandler.setEventHandler {
+                tputCnorm()
+                Foundation.exit(SIGINT)
+            }
+            sigIntHandler.resume()
+            let sigQuitHandler = DispatchSource.makeSignalSource(signal: SIGQUIT, queue: .global())
+            sigQuitHandler.setEventHandler {
+                tputCnorm()
+                Foundation.exit(SIGQUIT)
+            }
+            sigQuitHandler.resume()
+            let sigStopHandler = DispatchSource.makeSignalSource(signal: SIGSTOP, queue: .global())
+            sigStopHandler.setEventHandler {
+                tputCnorm()
+                Foundation.exit(SIGSTOP)
+            }
+            sigStopHandler.resume()
             let logger = try configureLogging(options.logLevel)
             try Command.findInPath(withName: "clear")?.wait()
             try Command.findInPath(withName: "tput")?.addArgument("civis").wait()

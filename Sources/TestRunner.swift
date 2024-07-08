@@ -152,12 +152,13 @@ class PeregrineRunner: TestRunner {
 
         var tests = [Test]()
         for try await line in listProcess.stdout.lines {
+            // `swift test list` output is standard across OS - thankfully
             logger.trace("swift test list stdout: \(line)")
             guard let remainder = line.split(separator: ".").last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
             }
             let suiteAndName = remainder.split(separator: "/")
-            guard let testSuite = suiteAndName.first?.trimmingPrefix("-["), let testName = suiteAndName.last else {
+            guard let testSuite = suiteAndName.first, let testName = suiteAndName.last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
             }
             let test = Test(suite: String(testSuite), name: String(testName))

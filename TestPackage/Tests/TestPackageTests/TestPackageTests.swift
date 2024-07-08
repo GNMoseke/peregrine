@@ -18,6 +18,14 @@ final class SuiteOne: XCTestCase {
     func testCustomFailMessage() {
        XCTAssertEqual("Hosea Matthews", "Dutch Van Der Linde", "Always listen to Hosea") 
     }
+
+    func testSkippedNoReason() throws {
+        throw XCTSkip()
+    }
+
+    func testSkippedWithReason() throws {
+        throw XCTSkip("Lernie is hard")
+    }
 }
 
 final class SuiteTwo: XCTestCase {

@@ -152,6 +152,7 @@ class PeregrineRunner: TestRunner {
 
         var tests = [Test]()
         for try await line in listProcess.stdout.lines {
+            // `swift test list` output is standard across OS - thankfully
             logger.trace("swift test list stdout: \(line)")
             guard let remainder = line.split(separator: ".").last else {
                 throw TestParseError.unexpectedLineFormat("Could not parse test definition from \(line)")
@@ -401,10 +402,26 @@ class PeregrineRunner: TestRunner {
 }
 
 private func parseTestFromName(_ testName: String, line: String) throws -> Test {
-    let nameComponents = testName.split(separator: ".")
-    guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
-        throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
-    }
+    // because of course the output is subtly different on macos vs linux
+    #if os(macOS)
+        // example line:
+        // Test Case '-[PeregrineTests.PeregrineTests testRunSingleFail]' passed (0.739 seconds).
+        let nameComponents = testName.split(separator: " ")
+        guard
+            let testSuite = nameComponents.first?.split(separator: ".").last,
+            var testName = nameComponents.last
+        else {
+            throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
+        }
+        testName.removeLast()
+    #elseif os(Linux)
+        // example line:
+        // Test Case 'PeregrineTests.testRunSingleFail' passed (0.459 seconds)
+        let nameComponents = testName.split(separator: ".")
+        guard var testSuite = nameComponents.first, var testName = nameComponents.last else {
+            throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
+        }
+    #endif
     return Test(suite: String(testSuite), name: String(testName))
 }
 

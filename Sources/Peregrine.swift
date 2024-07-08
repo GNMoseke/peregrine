@@ -12,7 +12,14 @@ import SwiftCommand
 struct Peregrine: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A utility for clearer swift test output.",
-        version: "0.4.1",
+        discussion: """
+        peregrine is a tool intended to clean up the often noisy output of swift-package-manager's `swift test` command.
+        It is meant as a development conveneince tool to more quickly and easily find failures and pull some simple test 
+        statistics for large test suites. It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
+        generally favorable to `swift test --filter fooTest` where applicable. peregrine is meant to help you find that
+        `fooTest` is having issues in the first place.
+        """,
+        version: "0.4.2",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
     )
@@ -33,7 +40,7 @@ struct Peregrine: AsyncParsableCommand {
         @Flag(help: "Supress toolchain information & progress output")
         var quiet: Bool = false
 
-        @Option(help: "Control Peregrine's log level.")
+        @Option(help: "Control Peregrine's log level (1-7, with 1 being the most granular)")
         var logLevel: LogLevel = .debug
     }
 }
@@ -49,7 +56,7 @@ extension Peregrine {
         var longestTestCount: Int? = nil
 
         // Again, this should be handled with xunit, but the spm xunit output is severely lacking
-        @Option(help: "Control the output format for long tests")
+        @Option(help: "Control the output format for long tests (stdout, csv)")
         var longTestOutputFormat: LongTestOutputFormat = .stdout
 
         @Option(help: "Output path for longest test file. Ignored if output is set to stdout.")

@@ -28,13 +28,14 @@ class PeregrineTests: XCTestCase {
     }
 
     func testParseList() async throws {
-        try XCTSkipIf(true, "fdjfldskfjslk")
         let listedTests = try Set(await runner.listTests())
         let expected = Set([
             Test(suite: "SuiteOne", name: "testSuccess"),
             Test(suite: "SuiteOne", name: "testSingleFail"),
             Test(suite: "SuiteOne", name: "testThreeFail"),
             Test(suite: "SuiteOne", name: "testCustomFailMessage"),
+            Test(suite: "SuiteOne", name: "testSkippedNoReason"),
+            Test(suite: "SuiteOne", name: "testSkippedWithReason"),
             Test(suite: "SuiteTwo", name: "testSuccess"),
             Test(suite: "SuiteTwo", name: "testSingleFail"),
             Test(suite: "SuiteTwo", name: "testThreeFail"),
@@ -56,8 +57,6 @@ class PeregrineTests: XCTestCase {
         XCTAssertNil(output.backtraceLines)
         XCTAssertTrue(output.results.map { $0.errors }.reduce([], +).isEmpty)
     }
-
-    // TODO: add test for skipped test parsing
 
     func testRunSingleFail() async throws {
         // Test normal single failed XCT*
@@ -126,7 +125,16 @@ class PeregrineTests: XCTestCase {
             packagePath: testPackagePath,
             plaintextOutput: false,
             quietOutput: true,
-            additionalSwiftFlags: ["--filter", "SuiteOne", "--filter", "SuiteTwo"]
+            additionalSwiftFlags: [
+                "--filter",
+                "SuiteOne",
+                "--filter",
+                "SuiteTwo",
+                "--skip",
+                "testSkippedNoReason",
+                "--skip",
+                "testSkippedWithReason",
+            ]
         )
         let output = try await runner.runTests(tests: [])
         XCTAssertFalse(output.success)
@@ -165,5 +173,36 @@ class PeregrineTests: XCTestCase {
         let output = try await runner.runTests(tests: [])
         XCTAssertFalse(output.success)
         XCTAssertNotNil(output.backtraceLines)
+    }
+
+    func testSkippedOutput() async throws {
+        runner.options = TestOptions(
+            toolchainPath: nil,
+            packagePath: testPackagePath,
+            plaintextOutput: false,
+            quietOutput: true,
+            additionalSwiftFlags: [
+                "--filter",
+                "SuiteOne/testSuccess",
+                "--filter",
+                "SuiteOne/testSkippedNoReason",
+                "--filter",
+                "SuiteOne/testSkippedWithReason",
+            ]
+        )
+        let output = try await runner.runTests(tests: [])
+        XCTAssertTrue(output.success)
+        let expectedErrors = Set([
+            "Test skipped",
+            "Test skipped - Lernie is hard",
+        ])
+        XCTAssertEqual(Set(output.results.map { $0.errors }.reduce([], +).map { $0.1 }), expectedErrors)
+        XCTAssertEqual(
+            Set(output.results.filter { $0.skipped }.map { $0.test }),
+            Set([
+                Test(suite: "SuiteOne", name: "testSkippedNoReason"),
+                Test(suite: "SuiteOne", name: "testSkippedWithReason"),
+            ])
+        )
     }
 }

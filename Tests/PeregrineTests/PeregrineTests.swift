@@ -24,7 +24,7 @@ class PeregrineTests: XCTestCase {
             )
         )
 
-        runner = try PeregrineRunner(options: testOptions, logger: configureLogging(.debug))
+        runner = try PeregrineRunner(options: testOptions, logger: configureLogging(.debug, testing: true))
     }
 
     func testParseList() async throws {

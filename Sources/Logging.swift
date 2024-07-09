@@ -6,7 +6,11 @@
 import Foundation
 import Puppy
 
-func configureLogging(_ level: LogLevel) throws -> Puppy {
+func configureLogging(_ level: LogLevel, testing: Bool = false) throws -> Puppy {
+    if testing {
+        return Puppy()
+    }
+
     // TODO: logfile per project
     // And also make this nicer for unit tests
     let logFormat = LogFormatter()

@@ -5,12 +5,20 @@ on:
     branches: [ "main" ]
 
 jobs:
-  test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  test-macos:
+    name: Test macOS using Xcode latest-stable
+    runs-on: macos-latest
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/checkout@v3
+      - name: Run tests
+        run: swift test -Xswiftc -warnings-as-errors -Xcc -Werror
+
+  test-ubuntu:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Run tests
-        run: swift test
+        run: swift test -Xswiftc -warnings-as-errors -Xcc -Werror

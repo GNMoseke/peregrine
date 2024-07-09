@@ -237,6 +237,6 @@ enum PeregrineError: Error {
 
 // NOTE: I used Puppy because I am familiar with it, but it seems like it may be good to swap this out for a more
 // robust logging backend in the future
-extension LogLevel: CaseIterable, ExpressibleByArgument {
+extension LogLevel: @retroactive CaseIterable, @retroactive ExpressibleByArgument {
     public static var allCases: [LogLevel] = [.trace, .verbose, .debug, .info, .notice, .warning, .error, .critical]
 }

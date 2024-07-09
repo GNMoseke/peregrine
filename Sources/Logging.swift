@@ -6,7 +6,7 @@
 import Foundation
 import Puppy
 
-func configureLogging(_ level: LogLevel, testing: Bool = false) throws -> Puppy {
+func configureLogging(_ level: String, testing: Bool = false) throws -> Puppy {
     if testing {
         return Puppy()
     }
@@ -16,13 +16,34 @@ func configureLogging(_ level: LogLevel, testing: Bool = false) throws -> Puppy 
     let logFormat = LogFormatter()
     let fileLogger = try FileLogger(
         "com.peregrine",
-        logLevel: level,
+        logLevel: LogLevel(from: level),
         logFormat: logFormat,
         fileURL: URL(fileURLWithPath: "/tmp/peregrine.log").absoluteURL
     )
     var logger = Puppy()
     logger.add(fileLogger)
     return logger
+}
+
+extension LogLevel {
+    init(from string: String) {
+        switch string {
+            case "trace":
+                self = .trace
+            case "debug":
+                self = .debug
+            case "verbose":
+                self = .verbose
+            case "warning":
+                self = .warning
+            case "error":
+                self = .error
+            case "critical":
+                self = .critical
+            default:
+                self = .info
+        }
+    }
 }
 
 func cleanupLogFile(logger: Puppy) throws {

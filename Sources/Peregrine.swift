@@ -40,8 +40,10 @@ struct Peregrine: AsyncParsableCommand {
         @Flag(help: "Supress toolchain information & progress output")
         var quiet: Bool = false
 
-        @Option(help: "Control Peregrine's log level (1-7, with 1 being the most granular)")
-        var logLevel: LogLevel = .debug
+        @Option(
+            help: "Control Peregrine's log level. Default is 'info'. Options: [trace, verbose, debug, info, warning, error, critical]"
+        )
+        var logLevel: String = "info"
     }
 }
 
@@ -233,10 +235,4 @@ private func tputCnorm() {
 
 enum PeregrineError: Error {
     case couldNotFindSwiftExecutable
-}
-
-// NOTE: I used Puppy because I am familiar with it, but it seems like it may be good to swap this out for a more
-// robust logging backend in the future
-extension LogLevel: @retroactive CaseIterable, @retroactive ExpressibleByArgument {
-    public static var allCases: [LogLevel] = [.trace, .verbose, .debug, .info, .notice, .warning, .error, .critical]
 }

@@ -5,6 +5,14 @@ on:
     branches: [ "main" ]
 
 jobs:
+  lint:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: SwiftFormat lint
+        run: swift package plugin --allow-writing-to-package-directory swiftformat --lint
+
   test-macos:
     name: Test macOS using Xcode latest-stable
     runs-on: macos-latest

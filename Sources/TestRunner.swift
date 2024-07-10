@@ -418,7 +418,7 @@ private func parseTestFromName(_ testName: String, line: String) throws -> Test 
         // example line:
         // Test Case 'PeregrineTests.testRunSingleFail' passed (0.459 seconds)
         let nameComponents = testName.split(separator: ".")
-        guard var testSuite = nameComponents.first, var testName = nameComponents.last else {
+        guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
             throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
         }
     #endif

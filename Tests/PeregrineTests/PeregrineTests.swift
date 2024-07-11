@@ -70,7 +70,7 @@ class PeregrineTests: XCTestCase {
         var output = try await runner.runTests(tests: [])
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
-        var expectedErrors = [#"("Arthur Morgan") is not equal to ("Dutch Van Der Linde")"#]
+        var expectedErrors = [#"XCTAssertEqual failed: ("Arthur Morgan") is not equal to ("Dutch Van Der Linde")"#]
         XCTAssertEqual(output.results.map { $0.errors }.reduce([], +).map { $0.1 }, expectedErrors)
         XCTAssertEqual(output.results.map { $0.test }, [Test(suite: "SuiteOne", name: "testSingleFail")])
 
@@ -86,7 +86,10 @@ class PeregrineTests: XCTestCase {
         output = try await runner.runTests(tests: [])
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
-        expectedErrors = [#"("Hosea Matthews") is not equal to ("Dutch Van Der Linde") - Always listen to Hosea"#]
+        expectedErrors =
+            [
+                #"XCTAssertEqual failed: ("Hosea Matthews") is not equal to ("Dutch Van Der Linde") - Always listen to Hosea"#,
+            ]
         XCTAssertEqual(output.results.map { $0.errors }.reduce([], +).map { $0.1 }, expectedErrors)
         XCTAssertEqual(output.results.map { $0.test }, [Test(suite: "SuiteOne", name: "testCustomFailMessage")])
     }
@@ -103,10 +106,10 @@ class PeregrineTests: XCTestCase {
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
         let expectedErrors = Set([
-            #"("Calvin") is not equal to ("Hobbes")"#,
+            #"XCTAssertEqual failed: ("Calvin") is not equal to ("Hobbes")"#,
             #"XCTAssertTrue failed"#,
-            #"("1") is not equal to ("2")"#,
-            #""Zagreus""#,
+            #"XCTAssertEqual failed: ("1") is not equal to ("2")"#,
+            #"XCTAssertNil failed: "Zagreus""#,
         ])
         XCTAssertEqual(Set(output.results.map { $0.errors }.reduce([], +).map { $0.1 }), expectedErrors)
         XCTAssertEqual(
@@ -140,12 +143,12 @@ class PeregrineTests: XCTestCase {
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
         let expectedErrors = Set([
-            #"("Arthur Morgan") is not equal to ("Dutch Van Der Linde")"#,
-            #"("Hosea Matthews") is not equal to ("Dutch Van Der Linde") - Always listen to Hosea"#,
-            #"("Calvin") is not equal to ("Hobbes")"#,
+            #"XCTAssertEqual failed: ("Arthur Morgan") is not equal to ("Dutch Van Der Linde")"#,
+            #"XCTAssertEqual failed: ("Hosea Matthews") is not equal to ("Dutch Van Der Linde") - Always listen to Hosea"#,
+            #"XCTAssertEqual failed: ("Calvin") is not equal to ("Hobbes")"#,
             #"XCTAssertTrue failed"#,
-            #"("1") is not equal to ("2")"#,
-            #""Zagreus""#,
+            #"XCTAssertEqual failed: ("1") is not equal to ("2")"#,
+            #"XCTAssertNil failed: "Zagreus""#,
         ])
         XCTAssertEqual(Set(output.results.map { $0.errors }.reduce([], +).map { $0.1 }), expectedErrors)
         XCTAssertEqual(

@@ -358,7 +358,8 @@ class PeregrineRunner: TestRunner {
 
             var location = String(errorLocation.trimmingCharacters(in: [":", " "]))
             location.removeFirst(packagePathPrefix.count)
-            let failureComponents = testAndFail.split(separator: ":")
+            // The spaces are important here and this is quite beholden to spm output formatting, just be aware
+            let failureComponents = testAndFail.split(separator: " : ")
             guard
                 let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces),
                 let failure = failureComponents.last

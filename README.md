@@ -1,3 +1,5 @@
+[![Swift 5.9](https://img.shields.io/badge/swift-5.9-red.svg?style=flat)](https://developer.apple.com/swift)
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 
 # Peregrine
 Peregrine is a tool for cleaning up and simplifying swift test output on the command line, to make it easier to find 

@@ -19,7 +19,7 @@ struct Peregrine: AsyncParsableCommand {
         generally favorable to `swift test --filter fooTest` where applicable. peregrine is meant to help you find that
         `fooTest` is having issues in the first place.
         """,
-        version: "0.4.2",
+        version: "1.0.0",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
     )

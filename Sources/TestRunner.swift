@@ -59,6 +59,12 @@ struct Test: Codable, Hashable {
     }
 }
 
+private enum LineStatus: String {
+    case passed
+    case failed
+    case skipped
+}
+
 struct TestResult {
     let test: Test
     let passed: Bool
@@ -314,91 +320,64 @@ class PeregrineRunner: TestRunner {
 
     /// Returns true if the line indicated a completed test
     private func parseTestLine(_ line: String) throws -> Bool {
-        // TODO: this whole function could use some refactoring
-        if line.starts(with: "Test Case") && !line.contains("started") {
-            var processedLine = line
-            processedLine.removeFirst("Test Case '".count)
-            let components = processedLine.split(separator: "'")
-            guard let fullTestName = components.first else {
-                throw TestParseError.unexpectedLineFormat("could not parse completion line: \(line)")
-            }
+        #if os(macOS)
 
-            let test = try parseTestFromName(String(fullTestName), line: line)
+        #else
+        let outputRegex = #/Test Case '(?<suite>[^ ]*)\.(?<name>.*)' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
+        let failureRegex = #/^(?<path>.*:[0-9]+): error: (?<suite>[^ ]*)\.(?<name>.*) : (?<reason>.*)$/#
+        let skippedReasonRegex = #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
+        #endif
 
-            guard
-                let timeString = processedLine.split(separator: "(").last?.split(separator: " ").first,
-                let testDuration = Double(String(timeString))
-            else {
-                throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
-            }
+        if let completion = try? outputRegex.wholeMatch(in: line) {
+            let test = Test(suite: String(completion.suite), name: String(completion.name)) 
+            let status = LineStatus(rawValue: String(completion.status))
 
-            if line.contains("passed") {
-                testResults[test] = TestResult(
-                    test: test,
-                    passed: true,
-                    skipped: false,
-                    errors: [],
-                    duration: .seconds(testDuration)
-                )
-                return true
+            switch status {
+                case .passed:
+                    if let testDurationRaw = completion.time, let testDuration = Double(testDurationRaw) {
+                        testResults[test] = TestResult(test: test, passed: true, skipped: false, errors: [], duration: .seconds(testDuration))
+                        return true
+                    }
+                    else {
+                        throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
+                    }
+                case .failed:
+                    if let testDurationRaw = completion.time, let testDuration = Double(testDurationRaw) {
+                        testResults[test]?.duration = .seconds(testDuration)
+                        return true
+                    }
+                    else {
+                        throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
+                    }
+                default: return true
             }
-            if line.contains("failed") {
-                testResults[test]?.duration = .seconds(testDuration)
-                return false
-            }
-            // FIXME: still slightly hacky but less prone to collision - XCT fails output the file name on the line so use that
-            // for more uniqueness guarantees
-            return false
-        } else if line.contains("error:") && line.contains(".swift") {
-            // Parse and store the error reason
-            let errorComponents = line.split(separator: "error:")
-            guard let errorLocation = errorComponents.first, let testAndFail = errorComponents.last else {
-                throw TestParseError.unexpectedLineFormat("Could not parse error line: \(line)")
-            }
-
-            var location = String(errorLocation.trimmingCharacters(in: [":", " "]))
-            location.removeFirst(packagePathPrefix.count)
-            // The spaces are important here and this is quite beholden to spm output formatting, just be aware
-            let failureComponents = testAndFail.split(separator: " : ")
-            guard
-                let testName = failureComponents.first?.trimmingCharacters(in: .whitespaces),
-                let failure = failureComponents.last
-            else {
-                throw TestParseError
-                    .unexpectedLineFormat("Could not parse error line, failed to pull test failure: \(line)")
-            }
-
-            let test = try parseTestFromName(testName, line: line)
+        }
+        else if let failure = try? failureRegex.wholeMatch(in: line) {
+            let test = Test(suite: String(failure.suite), name: String(failure.name)) 
             testResults[
                 test,
                 default: TestResult(test: test, passed: false, skipped: false, errors: [], duration: .seconds(0))
             ].errors
                 .append((
-                    location,
-                    String(failure.trimmingCharacters(in: .init(charactersIn: "- ")))
+                    String(failure.path),
+                    String(failure.reason.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
             return false
-        } else if line.contains("skipped") && line.contains(".swift") {
-            // Parse and store the skip reason
-            // The spaces are important here and this is quite beholden to spm output formatting, just be aware
-            let skippedComponents = line.split(separator: " : ")
-            guard let fullTestName = skippedComponents.first?.split(separator: ": ").last else {
-                throw TestParseError.unexpectedLineFormat("Could not parse skipped test identifier from line: \(line)")
-            }
-            let test = try parseTestFromName(String(fullTestName), line: line)
-            guard let skipReason = skippedComponents.last?.trimmingCharacters(in: .whitespacesAndNewlines) else {
-                throw TestParseError.unexpectedLineFormat("Could not parse skip reason from line: \(line)")
-            }
+        }
+        else if let skipped = try? skippedReasonRegex.wholeMatch(in: line) {
+            let test = Test(suite: String(skipped.suite), name: String(skipped.name)) 
             testResults[test] = TestResult(
                 test: test,
                 passed: true,
                 skipped: true,
-                errors: [("", skipReason)],
+                errors: [("", String(skipped.reason ?? ""))],
                 duration: .seconds(0)
             )
             return false
         }
-        return false
+        else {
+            return false
+        }
     }
 }
 

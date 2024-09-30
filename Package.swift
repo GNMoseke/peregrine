@@ -13,7 +13,7 @@ let package = Package(
         .package(
             url: "https://github.com/Zollerboy1/SwiftCommand.git",
             from: "1.2.0"
-        ), 
+        ),
         .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.53.9"),
     ],
     targets: [
@@ -22,9 +22,9 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftCommand", package: "SwiftCommand"),
-                .product(name: "Puppy", package: "Puppy")
+                .product(name: "Puppy", package: "Puppy"),
             ]
         ),
-        .testTarget(name: "PeregrineTests", dependencies: ["peregrine"])
+        .testTarget(name: "PeregrineTests", dependencies: ["peregrine"]),
     ]
 )

@@ -1,3 +1,8 @@
+// TestPackageTests.swift
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import XCTest
 
 final class SuiteOne: XCTestCase {
@@ -16,7 +21,7 @@ final class SuiteOne: XCTestCase {
     }
 
     func testCustomFailMessage() {
-       XCTAssertEqual("Hosea Matthews", "Dutch Van Der Linde", "Always listen to Hosea") 
+        XCTAssertEqual("Hosea Matthews", "Dutch Van Der Linde", "Always listen to Hosea")
     }
 
     func testSkippedNoReason() throws {

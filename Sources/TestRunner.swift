@@ -309,7 +309,7 @@ class PeregrineRunner: TestRunner {
                 case .csv:
                     let lines = "Suite,Name,Time (s),Passed\n" + sortedByTime
                         .map { "\($0.test.suite),\($0.test.name),\($0.duration),\($0.passed)" }.joined(separator: "\n")
-                    FileManager.default.createFile(
+                    _ = FileManager.default.createFile(
                         atPath: options.timingOptions.outputPath,
                         contents: lines.data(using: .ascii)
                     )

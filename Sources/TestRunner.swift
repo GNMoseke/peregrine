@@ -321,11 +321,13 @@ class PeregrineRunner: TestRunner {
     /// Returns true if the line indicated a completed test
     private func parseTestLine(_ line: String) throws -> Bool {
         #if os(macOS)
-
+            let outputRegex = #/^Test Case '-\[([^ ]*)\.(?<suite>[^ ]*) (?<name>.*)\]' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
+            let failureRegex = #/^(?<path>.*[0-9]+): error: -\[(\w+)\.(?<suite>\w+) (?<name>\w+)\] : (?<reason>.*)$/#
+            let skippedReasonRegex = #/^(.*:[0-9]+): -\[(\w+).(?<suite>[^ ]*) (?<name>.*)] : Test skipped(?: - )?(?<reason>.*)?$/#
         #else
-        let outputRegex = #/Test Case '(?<suite>[^ ]*)\.(?<name>.*)' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
-        let failureRegex = #/^(?<path>.*:[0-9]+): error: (?<suite>[^ ]*)\.(?<name>.*) : (?<reason>.*)$/#
-        let skippedReasonRegex = #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
+            let outputRegex = #/Test Case '(?<suite>[^ ]*)\.(?<name>.*)' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
+            let failureRegex = #/^(?<path>.*:[0-9]+): error: (?<suite>[^ ]*)\.(?<name>.*) : (?<reason>.*)$/#
+            let skippedReasonRegex = #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
         #endif
 
         if let completion = try? outputRegex.wholeMatch(in: line) {

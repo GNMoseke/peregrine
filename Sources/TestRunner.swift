@@ -321,41 +321,48 @@ class PeregrineRunner: TestRunner {
     /// Returns true if the line indicated a completed test
     private func parseTestLine(_ line: String) throws -> Bool {
         #if os(macOS)
-            let outputRegex = #/^Test Case '-\[([^ ]*)\.(?<suite>[^ ]*) (?<name>.*)\]' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
+            let outputRegex =
+                #/^Test Case '-\[([^ ]*)\.(?<suite>[^ ]*) (?<name>.*)\]' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
             let failureRegex = #/^(?<path>.*[0-9]+): error: -\[(\w+)\.(?<suite>\w+) (?<name>\w+)\] : (?<reason>.*)$/#
-            let skippedReasonRegex = #/^(.*:[0-9]+): -\[(\w+).(?<suite>[^ ]*) (?<name>.*)] : Test skipped(?: - )?(?<reason>.*)?$/#
+            let skippedReasonRegex =
+                #/^(.*:[0-9]+): -\[(\w+).(?<suite>[^ ]*) (?<name>.*)] : Test skipped(?: - )?(?<reason>.*)?$/#
         #else
-            let outputRegex = #/Test Case '(?<suite>[^ ]*)\.(?<name>.*)' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
+            let outputRegex =
+                #/Test Case '(?<suite>[^ ]*)\.(?<name>.*)' (?<status>passed|failed|skipped) \(?(?<time>\d*\.?\d+)?/#
             let failureRegex = #/^(?<path>.*:[0-9]+): error: (?<suite>[^ ]*)\.(?<name>.*) : (?<reason>.*)$/#
-            let skippedReasonRegex = #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
+            let skippedReasonRegex =
+                #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
         #endif
 
         if let completion = try? outputRegex.wholeMatch(in: line) {
-            let test = Test(suite: String(completion.suite), name: String(completion.name)) 
+            let test = Test(suite: String(completion.suite), name: String(completion.name))
             let status = LineStatus(rawValue: String(completion.status))
 
             switch status {
                 case .passed:
                     if let testDurationRaw = completion.time, let testDuration = Double(testDurationRaw) {
-                        testResults[test] = TestResult(test: test, passed: true, skipped: false, errors: [], duration: .seconds(testDuration))
+                        testResults[test] = TestResult(
+                            test: test,
+                            passed: true,
+                            skipped: false,
+                            errors: [],
+                            duration: .seconds(testDuration)
+                        )
                         return true
-                    }
-                    else {
+                    } else {
                         throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
                     }
                 case .failed:
                     if let testDurationRaw = completion.time, let testDuration = Double(testDurationRaw) {
                         testResults[test]?.duration = .seconds(testDuration)
                         return true
-                    }
-                    else {
+                    } else {
                         throw TestParseError.unexpectedLineFormat("Could not parse time from line: \(line)")
                     }
                 default: return true
             }
-        }
-        else if let failure = try? failureRegex.wholeMatch(in: line) {
-            let test = Test(suite: String(failure.suite), name: String(failure.name)) 
+        } else if let failure = try? failureRegex.wholeMatch(in: line) {
+            let test = Test(suite: String(failure.suite), name: String(failure.name))
             testResults[
                 test,
                 default: TestResult(test: test, passed: false, skipped: false, errors: [], duration: .seconds(0))
@@ -365,9 +372,8 @@ class PeregrineRunner: TestRunner {
                     String(failure.reason.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
             return false
-        }
-        else if let skipped = try? skippedReasonRegex.wholeMatch(in: line) {
-            let test = Test(suite: String(skipped.suite), name: String(skipped.name)) 
+        } else if let skipped = try? skippedReasonRegex.wholeMatch(in: line) {
+            let test = Test(suite: String(skipped.suite), name: String(skipped.name))
             testResults[test] = TestResult(
                 test: test,
                 passed: true,
@@ -376,8 +382,7 @@ class PeregrineRunner: TestRunner {
                 duration: .seconds(0)
             )
             return false
-        }
-        else {
+        } else {
             return false
         }
     }

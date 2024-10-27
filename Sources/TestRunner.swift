@@ -117,7 +117,7 @@ class PeregrineRunner: TestRunner {
                         terminator: "\r",
                         .CyanBold
                     )
-                    fflush(nil)
+                    fflush(stdout)
                     iteration += 1
                     try? await Task.sleep(for: .milliseconds(100.0))
                 } while !Task.isCancelled
@@ -220,8 +220,8 @@ class PeregrineRunner: TestRunner {
 
         if !options.quietOutput {
             print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
-            fflush(nil)
             print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
+            fflush(stdout)
         }
 
         var backtraceLines = [String]()
@@ -245,12 +245,12 @@ class PeregrineRunner: TestRunner {
                     for _ in 0 ..< stepSize {
                         progressBar = refreshProgressBar(progressBar)
                     }
-                    fflush(nil)
                     print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
+                    fflush(stdout)
                 } else if completeTests % stepSize == 0 {
                     progressBar = refreshProgressBar(progressBar)
-                    fflush(nil)
                     print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
+                    fflush(stdout)
                 }
             }
         }

@@ -362,7 +362,6 @@ class PeregrineRunner: TestRunner {
                 default: return true
             }
         } else if let failure = try? failureRegex.firstMatch(in: line) {
-            logger.info("\(line) matched failure regex")
             let test = Test(suite: String(failure.suite), name: String(failure.name))
             testResults[
                 test,
@@ -388,30 +387,6 @@ class PeregrineRunner: TestRunner {
             return false
         }
     }
-}
-
-private func parseTestFromName(_ testName: String, line: String) throws -> Test {
-    // because of course the output is subtly different on macos vs linux
-    #if os(macOS)
-        // example line:
-        // Test Case '-[PeregrineTests.PeregrineTests testRunSingleFail]' passed (0.739 seconds).
-        let nameComponents = testName.split(separator: " ")
-        guard
-            let testSuite = nameComponents.first?.split(separator: ".").last,
-            var testName = nameComponents.last
-        else {
-            throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
-        }
-        testName.removeLast()
-    #elseif os(Linux)
-        // example line:
-        // Test Case 'PeregrineTests.testRunSingleFail' passed (0.459 seconds)
-        let nameComponents = testName.split(separator: ".")
-        guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
-            throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
-        }
-    #endif
-    return Test(suite: String(testSuite), name: String(testName))
 }
 
 enum TestParseError: Error {

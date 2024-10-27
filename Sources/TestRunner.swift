@@ -117,7 +117,7 @@ class PeregrineRunner: TestRunner {
                         terminator: "\r",
                         .CyanBold
                     )
-                    fflush(nil)
+                    fflush(stdout)
                     iteration += 1
                     try? await Task.sleep(for: .milliseconds(100.0))
                 } while !Task.isCancelled
@@ -220,18 +220,18 @@ class PeregrineRunner: TestRunner {
 
         if !options.quietOutput {
             print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
-            print(progressBar, terminator: "\r")
-            fflush(nil)
+            print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
+            fflush(stdout)
         }
 
         var backtraceLines = [String]()
         var collectBacktrace = false
-        // TODO: clean this up, very heavy-handed processing
         for try await line in testProcess.stdout.lines {
             logger.trace("swift test stdout: \(line)")
             if collectBacktrace {
                 backtraceLines.append(line)
                 continue
+                // TODO: clean this up, very heavy-handed processing
             } else if line.contains("Fatal error:") {
                 // FIXME: There are other cases for crash as well, the above is for fatalerror/try!
                 backtraceLines.append(line)
@@ -245,12 +245,12 @@ class PeregrineRunner: TestRunner {
                     for _ in 0 ..< stepSize {
                         progressBar = refreshProgressBar(progressBar)
                     }
-                    print(progressBar, terminator: "\r")
-                    fflush(nil)
+                    print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
+                    fflush(stdout)
                 } else if completeTests % stepSize == 0 {
                     progressBar = refreshProgressBar(progressBar)
-                    print(progressBar, terminator: "\r")
-                    fflush(nil)
+                    print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
+                    fflush(stdout)
                 }
             }
         }
@@ -334,7 +334,7 @@ class PeregrineRunner: TestRunner {
                 #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
         #endif
 
-        if let completion = try? outputRegex.wholeMatch(in: line) {
+        if let completion = try? outputRegex.firstMatch(in: line) {
             let test = Test(suite: String(completion.suite), name: String(completion.name))
             let status = LineStatus(rawValue: String(completion.status))
 
@@ -361,7 +361,7 @@ class PeregrineRunner: TestRunner {
                     }
                 default: return true
             }
-        } else if let failure = try? failureRegex.wholeMatch(in: line) {
+        } else if let failure = try? failureRegex.firstMatch(in: line) {
             let test = Test(suite: String(failure.suite), name: String(failure.name))
             testResults[
                 test,
@@ -372,7 +372,7 @@ class PeregrineRunner: TestRunner {
                     String(failure.reason.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
             return false
-        } else if let skipped = try? skippedReasonRegex.wholeMatch(in: line) {
+        } else if let skipped = try? skippedReasonRegex.firstMatch(in: line) {
             let test = Test(suite: String(skipped.suite), name: String(skipped.name))
             testResults[test] = TestResult(
                 test: test,
@@ -383,33 +383,10 @@ class PeregrineRunner: TestRunner {
             )
             return false
         } else {
+            logger.debug("\(line) matched no regex and has been discarded")
             return false
         }
     }
-}
-
-private func parseTestFromName(_ testName: String, line: String) throws -> Test {
-    // because of course the output is subtly different on macos vs linux
-    #if os(macOS)
-        // example line:
-        // Test Case '-[PeregrineTests.PeregrineTests testRunSingleFail]' passed (0.739 seconds).
-        let nameComponents = testName.split(separator: " ")
-        guard
-            let testSuite = nameComponents.first?.split(separator: ".").last,
-            var testName = nameComponents.last
-        else {
-            throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
-        }
-        testName.removeLast()
-    #elseif os(Linux)
-        // example line:
-        // Test Case 'PeregrineTests.testRunSingleFail' passed (0.459 seconds)
-        let nameComponents = testName.split(separator: ".")
-        guard let testSuite = nameComponents.first, let testName = nameComponents.last else {
-            throw TestParseError.unexpectedLineFormat("could not parse test name from line: \(line)")
-        }
-    #endif
-    return Test(suite: String(testSuite), name: String(testName))
 }
 
 enum TestParseError: Error {

@@ -115,6 +115,7 @@ class PeregrineTests: XCTestCase {
         XCTAssertEqual(
             Set(output.results.map { $0.test }),
             Set([
+                Test(suite: "SuiteTwo", name: "testSuccess"),
                 Test(suite: "SuiteTwo", name: "testSingleFail"),
                 Test(suite: "SuiteTwo", name: "testThreeFail"),
             ])
@@ -153,9 +154,11 @@ class PeregrineTests: XCTestCase {
         XCTAssertEqual(
             Set(output.results.map { $0.test }),
             Set([
+                Test(suite: "SuiteOne", name: "testSuccess"),
                 Test(suite: "SuiteOne", name: "testSingleFail"),
                 Test(suite: "SuiteOne", name: "testThreeFail"),
                 Test(suite: "SuiteOne", name: "testCustomFailMessage"),
+                Test(suite: "SuiteTwo", name: "testSuccess"),
                 Test(suite: "SuiteTwo", name: "testSingleFail"),
                 Test(suite: "SuiteTwo", name: "testThreeFail"),
             ])

@@ -226,12 +226,12 @@ class PeregrineRunner: TestRunner {
 
         var backtraceLines = [String]()
         var collectBacktrace = false
-        // TODO: clean this up, very heavy-handed processing
         for try await line in testProcess.stdout.lines {
             logger.trace("swift test stdout: \(line)")
             if collectBacktrace {
                 backtraceLines.append(line)
                 continue
+                // TODO: clean this up, very heavy-handed processing
             } else if line.contains("Fatal error:") {
                 // FIXME: There are other cases for crash as well, the above is for fatalerror/try!
                 backtraceLines.append(line)
@@ -334,7 +334,7 @@ class PeregrineRunner: TestRunner {
                 #/^(.*:[0-9]+): (?<suite>[^ ]*)\.(?<name>.*) : Test skipped(?: - )?(?<reason>.*)?$/#
         #endif
 
-        if let completion = try? outputRegex.wholeMatch(in: line) {
+        if let completion = try? outputRegex.firstMatch(in: line) {
             let test = Test(suite: String(completion.suite), name: String(completion.name))
             let status = LineStatus(rawValue: String(completion.status))
 
@@ -361,7 +361,8 @@ class PeregrineRunner: TestRunner {
                     }
                 default: return true
             }
-        } else if let failure = try? failureRegex.wholeMatch(in: line) {
+        } else if let failure = try? failureRegex.firstMatch(in: line) {
+            logger.info("\(line) matched failure regex")
             let test = Test(suite: String(failure.suite), name: String(failure.name))
             testResults[
                 test,
@@ -372,7 +373,7 @@ class PeregrineRunner: TestRunner {
                     String(failure.reason.trimmingCharacters(in: .init(charactersIn: "- ")))
                 ))
             return false
-        } else if let skipped = try? skippedReasonRegex.wholeMatch(in: line) {
+        } else if let skipped = try? skippedReasonRegex.firstMatch(in: line) {
             let test = Test(suite: String(skipped.suite), name: String(skipped.name))
             testResults[test] = TestResult(
                 test: test,
@@ -383,6 +384,7 @@ class PeregrineRunner: TestRunner {
             )
             return false
         } else {
+            logger.debug("\(line) matched no regex and has been discarded")
             return false
         }
     }

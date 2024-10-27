@@ -220,8 +220,8 @@ class PeregrineRunner: TestRunner {
 
         if !options.quietOutput {
             print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
-            print(progressBar, terminator: "\r")
             fflush(nil)
+            print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
         }
 
         var backtraceLines = [String]()
@@ -245,12 +245,12 @@ class PeregrineRunner: TestRunner {
                     for _ in 0 ..< stepSize {
                         progressBar = refreshProgressBar(progressBar)
                     }
-                    print(progressBar, terminator: "\r")
                     fflush(nil)
+                    print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
                 } else if completeTests % stepSize == 0 {
                     progressBar = refreshProgressBar(progressBar)
-                    print(progressBar, terminator: "\r")
                     fflush(nil)
+                    print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
                 }
             }
         }

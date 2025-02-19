@@ -14,7 +14,6 @@ let package = Package(
             url: "https://github.com/Zollerboy1/SwiftCommand.git",
             from: "1.2.0"
         ),
-        .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.53.9"),
     ],
     targets: [
         .executableTarget(

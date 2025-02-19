@@ -74,14 +74,7 @@ struct TestResult {
     var duration: Duration
 }
 
-protocol TestRunner {
-    var options: TestOptions { get set }
-    func listTests() async throws -> [Test]
-    func runTests(tests: [Test]) async throws -> TestRunOutput
-    func output(results: TestRunOutput) throws
-}
-
-class PeregrineRunner: TestRunner {
+class PeregrineRunner {
     var options: TestOptions
     var testResults: [Test: TestResult] = [:]
 
@@ -185,15 +178,7 @@ class PeregrineRunner: TestRunner {
         return tests
     }
 
-    func runTests(tests: [Test]) async throws -> TestRunOutput {
-        // TODO: the tests parameter here is somewhat confusing since it only gets used for couting the number being run
-        // The way to filter/skip is to pass the relevant flag via the passthrough option in peregrine, but that feels a
-        // little funky
-        // I'd like to refactor this to filter to the given test array in this function, but then there has to be some
-        // extra
-        // parsing done to see if --filter or --skip were included and respect them accordingly - `swift test list` does
-        // not use those flags
-        let testCount = tests.count == 0 ? 1 : tests.count
+    func runTests(testCount: Int) async throws -> TestRunOutput {
         guard
             let testProcess = try (
                 options.toolchainPath == nil ? Command
@@ -201,8 +186,8 @@ class PeregrineRunner: TestRunner {
             )?
                 .addArguments(["test", "--package-path", options.packagePath])
                 .addArguments(options.additionalSwiftFlags)
-                .setStdout(.pipe) // swift build diagnostics go to stder
-                .setStderr(.pipe)
+                .setStdout(.pipe)
+                .setStderr(.pipe) // swift build diagnostics go to stder
                 .spawn()
         else {
             throw PeregrineError.couldNotFindSwiftExecutable
@@ -210,8 +195,7 @@ class PeregrineRunner: TestRunner {
 
         let progressBarCharacterLength = 45
         let stepSize: Int = testCount < progressBarCharacterLength ? progressBarCharacterLength / testCount :
-            testCount /
-            progressBarCharacterLength
+            testCount / progressBarCharacterLength
         var completeTests = 0
         var progressBar = String(
             repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock),

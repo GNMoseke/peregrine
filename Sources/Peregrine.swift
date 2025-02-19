@@ -125,7 +125,7 @@ extension Peregrine {
             let testRunner = PeregrineRunner(options: testOptions, logger: logger)
             try await handle {
                 let tests = try await testRunner.listTests()
-                let testResults = try await testRunner.runTests(tests: tests)
+                let testResults = try await testRunner.runTests(testCount: tests.count)
                 try testRunner.output(results: testResults)
             }
 

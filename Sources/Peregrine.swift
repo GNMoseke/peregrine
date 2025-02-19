@@ -15,11 +15,13 @@ struct Peregrine: AsyncParsableCommand {
         discussion: """
         peregrine is a tool intended to clean up the often noisy output of swift-package-manager's `swift test` command.
         It is meant as a development conveneince tool to more quickly and easily find failures and pull some simple test 
-        statistics for large test suites. It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
+        statistics for large test suites. 
+
+        It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
         generally favorable to `swift test --filter fooTest` where applicable. peregrine is meant to help you find that
         `fooTest` is having issues in the first place.
         """,
-        version: "1.0.1",
+        version: "1.0.3",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
     )
@@ -39,6 +41,11 @@ struct Peregrine: AsyncParsableCommand {
 
         @Flag(help: "Supress toolchain information & progress output")
         var quiet: Bool = false
+
+        @Flag(
+            help: "Retain log files even on successful runs. By deafult log files will be removed for successful runs."
+        )
+        var keepLogs: Bool = false
 
         @Option(
             help: "Control Peregrine's log level. Default is 'info'. Options: [trace, verbose, debug, info, warning, error, critical]"
@@ -76,24 +83,18 @@ extension Peregrine {
         mutating func run() async throws {
             // NOTE: This feels potentially like the incorrect way to handle this - didn't want to adopt the full
             // swift-server/lifecycle package
-            let sigIntHandler = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
-            sigIntHandler.setEventHandler {
+            signal(SIGINT) { _ in
                 tputCnorm()
                 Foundation.exit(SIGINT)
             }
-            sigIntHandler.resume()
-            let sigQuitHandler = DispatchSource.makeSignalSource(signal: SIGQUIT, queue: .global())
-            sigQuitHandler.setEventHandler {
+            signal(SIGQUIT) { _ in
                 tputCnorm()
                 Foundation.exit(SIGQUIT)
             }
-            sigQuitHandler.resume()
-            let sigStopHandler = DispatchSource.makeSignalSource(signal: SIGSTOP, queue: .global())
-            sigStopHandler.setEventHandler {
+            signal(SIGSTOP) { _ in
                 tputCnorm()
                 Foundation.exit(SIGSTOP)
             }
-            sigStopHandler.resume()
 
             let logger = try configureLogging(options.logLevel)
             logger.info("Executing Tests")
@@ -125,12 +126,12 @@ extension Peregrine {
             let testRunner = PeregrineRunner(options: testOptions, logger: logger)
             try await handle {
                 let tests = try await testRunner.listTests()
-                let testResults = try await testRunner.runTests(tests: tests)
+                let testResults = try await testRunner.runTests(testCount: tests.count)
                 try testRunner.output(results: testResults)
             }
 
             // only cleanup on fully successful run
-            try cleanupLogFile(logger: logger)
+            if !options.keepLogs { try cleanupLogFile(logger: logger) }
         }
 
         private func getSwiftVersion() throws -> String {

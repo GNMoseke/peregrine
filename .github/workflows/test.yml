@@ -6,12 +6,11 @@ on:
 
 jobs:
   lint:
-    name: Check Formatting
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-      - name: SwiftFormat lint
-        run: swift package plugin --allow-writing-to-package-directory swiftformat --lint
+      - name: SwiftFormat
+        run: swiftformat --lint . --reporter github-actions-log
 
   test-macos:
     name: Test macOS using Xcode latest-stable

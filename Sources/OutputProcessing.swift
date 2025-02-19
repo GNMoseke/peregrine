@@ -1,4 +1,3 @@
-
 /// This relies heavily on the output format from swift test remaining the same, I'd like to parse xunit here
 /// but spm's xunit output doesn't give valuable information: https://github.com/apple/swift-package-manager/issues/7622
 func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws -> (output: String, color: TextColor) {

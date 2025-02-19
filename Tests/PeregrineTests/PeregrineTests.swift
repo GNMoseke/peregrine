@@ -52,7 +52,7 @@ class PeregrineTests: XCTestCase {
             quietOutput: true,
             additionalSwiftFlags: ["--filter", "SuiteOne/testSuccess", "--filter", "SuiteTwo/testSuccess"]
         )
-        let output = try await runner.runTests(tests: [])
+        let output = try await runner.runTests(testCount: 0)
         XCTAssertTrue(output.success)
         XCTAssertNil(output.backtraceLines)
         XCTAssertTrue(output.results.map { $0.errors }.reduce([], +).isEmpty)
@@ -67,7 +67,7 @@ class PeregrineTests: XCTestCase {
             quietOutput: true,
             additionalSwiftFlags: ["--filter", "SuiteOne/testSingleFail"]
         )
-        var output = try await runner.runTests(tests: [])
+        var output = try await runner.runTests(testCount: 0)
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
         var expectedErrors = [#"XCTAssertEqual failed: ("Arthur Morgan") is not equal to ("Dutch Van Der Linde")"#]
@@ -83,7 +83,7 @@ class PeregrineTests: XCTestCase {
             additionalSwiftFlags: ["--filter", "SuiteOne/testCustomFailMessage"]
         )
         runner.testResults.removeAll()
-        output = try await runner.runTests(tests: [])
+        output = try await runner.runTests(testCount: 0)
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
         expectedErrors =
@@ -102,7 +102,7 @@ class PeregrineTests: XCTestCase {
             quietOutput: true,
             additionalSwiftFlags: ["--filter", "SuiteTwo"]
         )
-        let output = try await runner.runTests(tests: [])
+        let output = try await runner.runTests(testCount: 0)
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
         let expectedErrors = Set([
@@ -139,7 +139,7 @@ class PeregrineTests: XCTestCase {
                 "testSkippedWithReason",
             ]
         )
-        let output = try await runner.runTests(tests: [])
+        let output = try await runner.runTests(testCount: 0)
         XCTAssertFalse(output.success)
         XCTAssertNil(output.backtraceLines)
         let expectedErrors = Set([
@@ -173,7 +173,7 @@ class PeregrineTests: XCTestCase {
             quietOutput: true,
             additionalSwiftFlags: ["--filter", "SuiteThatCrashes"]
         )
-        let output = try await runner.runTests(tests: [])
+        let output = try await runner.runTests(testCount: 0)
         XCTAssertFalse(output.success)
         XCTAssertNotNil(output.backtraceLines)
     }
@@ -193,7 +193,7 @@ class PeregrineTests: XCTestCase {
                 "SuiteOne/testSkippedWithReason",
             ]
         )
-        let output = try await runner.runTests(tests: [])
+        let output = try await runner.runTests(testCount: 0)
         XCTAssertTrue(output.success)
         let expectedErrors = Set([
             "",

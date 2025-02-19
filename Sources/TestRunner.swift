@@ -194,7 +194,8 @@ class PeregrineRunner {
         }
 
         let progressBarCharacterLength = 45
-        let stepSize: Int = testCount < progressBarCharacterLength ? progressBarCharacterLength / testCount :
+        let stepSize: Int = testCount < progressBarCharacterLength ? progressBarCharacterLength /
+            ((testCount == 0) ? 1 : 0) :
             testCount / progressBarCharacterLength
         var completeTests = 0
         var progressBar = String(

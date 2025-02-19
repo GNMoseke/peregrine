@@ -83,24 +83,18 @@ extension Peregrine {
         mutating func run() async throws {
             // NOTE: This feels potentially like the incorrect way to handle this - didn't want to adopt the full
             // swift-server/lifecycle package
-            let sigIntHandler = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
-            sigIntHandler.setEventHandler {
+            signal(SIGINT) { _ in
                 tputCnorm()
                 Foundation.exit(SIGINT)
             }
-            sigIntHandler.resume()
-            let sigQuitHandler = DispatchSource.makeSignalSource(signal: SIGQUIT, queue: .global())
-            sigQuitHandler.setEventHandler {
+            signal(SIGQUIT) { _ in
                 tputCnorm()
                 Foundation.exit(SIGQUIT)
             }
-            sigQuitHandler.resume()
-            let sigStopHandler = DispatchSource.makeSignalSource(signal: SIGSTOP, queue: .global())
-            sigStopHandler.setEventHandler {
+            signal(SIGSTOP) { _ in
                 tputCnorm()
                 Foundation.exit(SIGSTOP)
             }
-            sigStopHandler.resume()
 
             let logger = try configureLogging(options.logLevel)
             logger.info("Executing Tests")

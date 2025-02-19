@@ -143,7 +143,7 @@ class PeregrineRunner {
             if collectBuildFailure {
                 buildFailLines.append(line)
             }
-            if !collectBuildFailure && line.contains("error:") && line.contains(".swift") {
+            if !collectBuildFailure, line.contains("error:"), line.contains(".swift") {
                 logger.debug("Build failure found, collecting remaining stderr")
                 collectBuildFailure = true
             }

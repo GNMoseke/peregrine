@@ -15,7 +15,9 @@ struct Peregrine: AsyncParsableCommand {
         discussion: """
         peregrine is a tool intended to clean up the often noisy output of swift-package-manager's `swift test` command.
         It is meant as a development conveneince tool to more quickly and easily find failures and pull some simple test 
-        statistics for large test suites. It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
+        statistics for large test suites. 
+
+        It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
         generally favorable to `swift test --filter fooTest` where applicable. peregrine is meant to help you find that
         `fooTest` is having issues in the first place.
         """,
@@ -39,6 +41,11 @@ struct Peregrine: AsyncParsableCommand {
 
         @Flag(help: "Supress toolchain information & progress output")
         var quiet: Bool = false
+
+        @Flag(
+            help: "Retain log files even on successful runs. By deafult log files will be removed for successful runs."
+        )
+        var keepLogs: Bool = false
 
         @Option(
             help: "Control Peregrine's log level. Default is 'info'. Options: [trace, verbose, debug, info, warning, error, critical]"
@@ -130,7 +137,7 @@ extension Peregrine {
             }
 
             // only cleanup on fully successful run
-            try cleanupLogFile(logger: logger)
+            if !options.keepLogs { try cleanupLogFile(logger: logger) }
         }
 
         private func getSwiftVersion() throws -> String {

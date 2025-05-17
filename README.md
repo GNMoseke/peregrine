@@ -1,8 +1,8 @@
-[![Swift 5.9](https://img.shields.io/badge/swift-5.9-red.svg?style=flat)](https://developer.apple.com/swift)
+[![Swift 6.0](https://img.shields.io/badge/swift-6.0-red.svg?style=flat)](https://developer.apple.com/swift)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-lightgrey.svg)](https://opensource.org/licenses/MPL-2.0)
 
 # Peregrine
-Peregrine is a tool for cleaning up and simplifying swift test output on the command line, to make it easier to find 
+Peregrine is a tool for cleaning up and simplifying **XCTest** output on the command line, to make it easier to find 
 test failures, quickly. It includes things like:
 - Showing only test failures and where they happened, without the output from successful tests
 - Listing/Counting tests with prettier output
@@ -26,7 +26,7 @@ peregrine --help
 
 > [!WARNING]
 > peregrine does a lot of string parsing, and is heavily reliant on the output format of
-> [swift-package-manager](https://github.com/apple/swift-package-manager) and `XCTest`.
+> [swift-package-manager](https://github.com/apple/swift-package-manager) and specifically `XCTest`.
 > It is meant as a local development convenience tool and should be used as such. I'm sure there are bugs - contributions are welcome! See
 > the "Why?" section below for more details.
 

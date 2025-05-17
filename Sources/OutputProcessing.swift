@@ -8,13 +8,13 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
             """
 
 
-            \(symbolOutput.getSymbol(.Success)) All Tests Passed!
+            \(symbolOutput.getSymbol(.success)) All Tests Passed!
             \(skippedTests.count > 0 ? """
             The following tests were skipped:
             \(skippedTests.joined(separator: "\n"))
             """ : "")
             """,
-            .GreenBold
+            .greenBold
         )
     } else if let backtraceLines = testOutput.backtraceLines {
         return (
@@ -24,7 +24,7 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
             === TESTS CRASHED ===
             \(backtraceLines.joined(separator: "\n"))
             """,
-            .RedBold
+            .redBold
         )
     } else {
         return try (
@@ -38,17 +38,17 @@ func processOutput(testOutput: TestRunOutput, symbolOutput: SymbolOutput) throws
             \(skippedTests.joined(separator: "\n"))
             """ : "")
             """,
-            .RedBold
+            .redBold
         )
     }
 }
 
 func processErrors(results: [TestResult], symbolOutput: SymbolOutput) throws -> String {
     var testsBySuite: [String: String] = [:]
-    results.filter { !$0.passed }.forEach { result in
+    for result in results.filter({ !$0.passed }) {
         let testHeader =
-            " \(symbolOutput.getSymbol(.RightArrow)) \(symbolOutput.getSymbol(.FailedTestFlask)) \(result.test.name) - (\(result.duration))\n"
-        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.RightArrow)) \($0.1) -> \($0.0)" }
+            " \(symbolOutput.getSymbol(.rightArrow)) \(symbolOutput.getSymbol(.failedTestFlask)) \(result.test.name) - (\(result.duration))\n"
+        let errors = result.errors.map { "   \(symbolOutput.getSymbol(.rightArrow)) \($0.1) -> \($0.0)" }
             .joined(separator: "\n")
         testsBySuite[result.test.suite, default: ""] += testHeader + errors + "\n"
     }

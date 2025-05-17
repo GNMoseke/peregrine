@@ -84,15 +84,16 @@ class PeregrineRunner {
     init(options: TestOptions, logger: Puppy) {
         self.options = options
         self.logger = logger
-        packagePathPrefix = (Foundation.URL(string: options.packagePath)?.path ?? "") +
-            (options.packagePath.last == "/" ? "" : "/")
+        packagePathPrefix =
+            (Foundation.URL(string: options.packagePath)?.path ?? "") + (options.packagePath.last == "/" ? "" : "/")
     }
 
     func listTests() async throws -> [Test] {
         logger.info("Listing Tests at \(options.packagePath)")
         guard
             FileManager.default
-                .fileExists(atPath: options.packagePath + (options.packagePath.last == "/" ? "" : "/") + "Package.swift")
+                .fileExists(
+                    atPath: options.packagePath + (options.packagePath.last == "/" ? "" : "/") + "Package.swift")
         else {
             logger.error("Path given was not a swift package")
             throw TestParseError.notSwiftPackage
@@ -106,9 +107,9 @@ class PeregrineRunner {
                     self.logger.trace("Rotating spinner...")
                     print(
                         self.options.symbolOutput
-                            .getSymbol(.Build) + " Building... \(spinnerStates[iteration % spinnerStates.count])",
+                            .getSymbol(.build) + " Building... \(spinnerStates[iteration % spinnerStates.count])",
                         terminator: "\r",
-                        .CyanBold
+                        .cyanBold
                     )
                     fflush(stdout)
                     iteration += 1
@@ -123,10 +124,10 @@ class PeregrineRunner {
         }
 
         guard
-            let listProcess = try (
-                options.toolchainPath == nil ? Command
-                    .findInPath(withName: "swift") : Command(executablePath: .init(options.toolchainPath!))
-            )?
+            let listProcess = try
+                (options.toolchainPath == nil
+                ? Command
+                    .findInPath(withName: "swift") : Command(executablePath: .init(options.toolchainPath!)))?
                 .addArguments(["test", "list", "--package-path", options.packagePath])
                 .addArguments(options.additionalSwiftFlags)
                 .setStdout(.pipe)
@@ -170,8 +171,8 @@ class PeregrineRunner {
         // confusing
         logger.info("Build/List finished with code \(status.exitCode ?? 0)")
         if !(status.terminatedSuccessfully) {
-            print("=== BUILD FAILED ===", .RedBold)
-            print(buildFailLines.joined(separator: "\n"), .RedBold)
+            print("=== BUILD FAILED ===", .redBold)
+            print(buildFailLines.joined(separator: "\n"), .redBold)
             throw TestParseError.buildFailure
         }
         logger.trace("Found tests: \(tests)")
@@ -180,31 +181,31 @@ class PeregrineRunner {
 
     func runTests(testCount: Int) async throws -> TestRunOutput {
         guard
-            let testProcess = try (
-                options.toolchainPath == nil ? Command
-                    .findInPath(withName: "swift") : Command(executablePath: .init(options.toolchainPath!))
-            )?
+            let testProcess = try
+                (options.toolchainPath == nil
+                ? Command
+                    .findInPath(withName: "swift") : Command(executablePath: .init(options.toolchainPath!)))?
                 .addArguments(["test", "--package-path", options.packagePath])
                 .addArguments(options.additionalSwiftFlags)
                 .setStdout(.pipe)
-                .setStderr(.pipe) // swift build diagnostics go to stder
+                .setStderr(.pipe)  // swift build diagnostics go to stder
                 .spawn()
         else {
             throw PeregrineError.couldNotFindSwiftExecutable
         }
 
         let progressBarCharacterLength = 45
-        let stepSize: Int = testCount < progressBarCharacterLength ? progressBarCharacterLength /
-            ((testCount == 0) ? 1 : 0) :
-            testCount / progressBarCharacterLength
+        let stepSize: Int =
+            testCount < progressBarCharacterLength
+            ? progressBarCharacterLength / ((testCount == 0) ? 1 : 0) : testCount / progressBarCharacterLength
         var completeTests = 0
         var progressBar = String(
-            repeating: options.symbolOutput.getSymbol(.LightlyShadedBlock),
+            repeating: options.symbolOutput.getSymbol(.lightlyShadedBlock),
             count: progressBarCharacterLength
         )
 
         if !options.quietOutput {
-            print(options.symbolOutput.getSymbol(.ErlenmeyerFlask) + " Running Tests...", .CyanBold)
+            print(options.symbolOutput.getSymbol(.erlenmeyerFlask) + " Running Tests...", .cyanBold)
             print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
             fflush(stdout)
         }
@@ -227,7 +228,7 @@ class PeregrineRunner {
                 completeTests += 1
                 if testCount < progressBarCharacterLength {
                     // in the case that we have fewer tests than the length of the bar, fill in more than 1 block
-                    for _ in 0 ..< stepSize {
+                    for _ in 0..<stepSize {
                         progressBar = refreshProgressBar(progressBar)
                     }
                     print(progressBar + #" (\#(completeTests)/\#(testCount))"#, terminator: "\r")
@@ -242,10 +243,11 @@ class PeregrineRunner {
 
         // this could maybe be misleading, but finish the bar when tests finish no matter what
         if !options.quietOutput {
-            print(String(
-                repeating: options.symbolOutput.getSymbol(.FilledBlock),
-                count: progressBarCharacterLength
-            ))
+            print(
+                String(
+                    repeating: options.symbolOutput.getSymbol(.filledBlock),
+                    count: progressBarCharacterLength
+                ))
         }
 
         let status = try await testProcess.status
@@ -266,7 +268,7 @@ class PeregrineRunner {
     private func refreshProgressBar(_ progressBar: String) -> String {
         var newProgressBar = String(progressBar.dropLast())
         newProgressBar.insert(
-            Character(options.symbolOutput.getSymbol(.FilledBlock)),
+            Character(options.symbolOutput.getSymbol(.filledBlock)),
             at: progressBar.startIndex
         )
         return newProgressBar
@@ -279,26 +281,28 @@ class PeregrineRunner {
         if options.timingOptions.showTimes {
             var sortedByTime = results.results.sorted(by: { $0.duration > $1.duration })
             if let countLimit = options.timingOptions.count {
-                sortedByTime = Array(sortedByTime[0 ..< countLimit])
+                sortedByTime = Array(sortedByTime[0..<countLimit])
             }
             switch options.timingOptions.outputFormat {
                 case .stdout:
-                    print("=== \(options.symbolOutput.getSymbol(.Timer)) SLOWEST TESTS ===", .CyanBold)
+                    print("=== \(options.symbolOutput.getSymbol(.timer)) SLOWEST TESTS ===", .cyanBold)
                     for (idx, result) in sortedByTime.enumerated() {
                         // TODO: line up the lines, just generally clean up this output
                         print(
                             "\(idx + 1) | \(result.test.fullName) (\(result.passed ? "Succeeded\(result.skipped ? " - Skipped" : "")" : "Failed")): \(result.duration)",
-                            result.passed ? .GreenBold : .RedBold
+                            result.passed ? .greenBold : .redBold
                         )
                     }
                 case .csv:
-                    let lines = "Suite,Name,Time (s),Passed\n" + sortedByTime
+                    let lines =
+                        "Suite,Name,Time (s),Passed\n"
+                        + sortedByTime
                         .map { "\($0.test.suite),\($0.test.name),\($0.duration),\($0.passed)" }.joined(separator: "\n")
                     _ = FileManager.default.createFile(
                         atPath: options.timingOptions.outputPath,
                         contents: lines.data(using: .ascii)
                     )
-                    print("Successfully output test times to \(options.timingOptions.outputPath)", .Cyan)
+                    print("Successfully output test times to \(options.timingOptions.outputPath)", .cyan)
             }
         }
     }
@@ -352,10 +356,11 @@ class PeregrineRunner {
                 test,
                 default: TestResult(test: test, passed: false, skipped: false, errors: [], duration: .seconds(0))
             ].errors
-                .append((
-                    String(failure.path),
-                    String(failure.reason.trimmingCharacters(in: .init(charactersIn: "- ")))
-                ))
+                .append(
+                    (
+                        String(failure.path),
+                        String(failure.reason.trimmingCharacters(in: .init(charactersIn: "- ")))
+                    ))
             return false
         } else if let skipped = try? skippedReasonRegex.firstMatch(in: line) {
             let test = Test(suite: String(skipped.suite), name: String(skipped.name))

@@ -10,10 +10,10 @@ func print(_ str: String, terminator: String = "\n", _ color: TextColor) {
 }
 
 enum TextColor: String {
-    case GreenBold = "\u{001B}[0;32;1m"
-    case RedBold = "\u{001B}[0;31;1m"
-    case CyanBold = "\u{001B}[0;36;1m"
-    case Cyan = "\u{001B}[0;36m"
+    case greenBold = "\u{001B}[0;32;1m"
+    case redBold = "\u{001B}[0;31;1m"
+    case cyanBold = "\u{001B}[0;36;1m"
+    case cyan = "\u{001B}[0;36m"
 }
 
 struct SymbolOutput {
@@ -24,26 +24,26 @@ struct SymbolOutput {
 }
 
 enum NerdFontIcons: String {
-    case ErlenmeyerFlask = "󰂓"
-    case FailedTestFlask = "󱉄"
-    case Timer = "󰔛"
-    case Build = "󱌣"
-    case Failure = ""
-    case Success = ""
-    case RightArrow = "󱞩"
+    case erlenmeyerFlask = "󰂓"
+    case failedTestFlask = "󱉄"
+    case timer = "󰔛"
+    case build = "󱌣"
+    case failure = ""
+    case success = ""
+    case rightArrow = "󱞩"
     // not technically nerd font icons but putting here
-    case FilledBlock = "█"
-    case LightlyShadedBlock = "░"
+    case filledBlock = "█"
+    case lightlyShadedBlock = "░"
 
     var plain: String {
         switch self {
-            case .ErlenmeyerFlask: "*"
-            case .FailedTestFlask, .Failure: "!"
-            case .Timer: "@"
-            case .Build: "%"
-            case .Success: ""
-            case .RightArrow: ">"
-            case .FilledBlock, .LightlyShadedBlock: rawValue
+            case .erlenmeyerFlask: "*"
+            case .failedTestFlask, .failure: "!"
+            case .timer: "@"
+            case .build: "%"
+            case .success: ""
+            case .rightArrow: ">"
+            case .filledBlock, .lightlyShadedBlock: rawValue
         }
     }
 }

@@ -13,14 +13,14 @@ struct Peregrine: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A utility for clearer swift test output.",
         discussion: """
-        peregrine is a tool intended to clean up the often noisy output of swift-package-manager's `swift test` command.
-        It is meant as a development conveneince tool to more quickly and easily find failures and pull some simple test 
-        statistics for large test suites. 
+            peregrine is a tool intended to clean up the often noisy output of swift-package-manager's `swift test` command.
+            It is meant as a development conveneince tool to more quickly and easily find failures and pull some simple test 
+            statistics for large test suites. 
 
-        It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
-        generally favorable to `swift test --filter fooTest` where applicable. peregrine is meant to help you find that
-        `fooTest` is having issues in the first place.
-        """,
+            It is **NOT** a drop-in replacement for `swift test` - when debugging, it is still
+            generally favorable to `swift test --filter fooTest` where applicable. peregrine is meant to help you find that
+            `fooTest` is having issues in the first place.
+            """,
         version: "1.0.3",
         subcommands: [Run.self, CountTests.self],
         defaultSubcommand: Run.self
@@ -48,7 +48,8 @@ struct Peregrine: AsyncParsableCommand {
         var keepLogs: Bool = false
 
         @Option(
-            help: "Control Peregrine's log level. Default is 'info'. Options: [trace, verbose, debug, info, warning, error, critical]"
+            help:
+                "Control Peregrine's log level. Default is 'info'. Options: [trace, verbose, debug, info, warning, error, critical]"
         )
         var logLevel: String = "info"
     }
@@ -75,7 +76,8 @@ extension Peregrine {
             parsing: .remaining,
             help: ArgumentHelp(
                 "Pass swift flags through to the underlying test invocation.",
-                discussion: "Note that parallel testing may cause unexpected parsing behavior as spms xunit output is currently lacking."
+                discussion:
+                    "Note that parallel testing may cause unexpected parsing behavior as spms xunit output is currently lacking."
             )
         )
         var swiftFlags: [String] = []
@@ -106,8 +108,8 @@ extension Peregrine {
             }
 
             if !options.quiet {
-                print("=== PEREGRINE - EXECUTING TESTS ===", .CyanBold)
-                try print(getSwiftVersion(), .Cyan)
+                print("=== PEREGRINE - EXECUTING TESTS ===", .cyanBold)
+                try print(getSwiftVersion(), .cyan)
             }
             let testOptions = TestOptions(
                 toolchainPath: options.toolchain,
@@ -135,7 +137,8 @@ extension Peregrine {
         }
 
         private func getSwiftVersion() throws -> String {
-            try "Toolchain Information:\n\((options.toolchain == nil ? Command.findInPath(withName: "swift") : Command(executablePath: .init(options.toolchain!)))?.addArgument("--version").waitForOutput().stdout ?? "Unknown")"
+            try
+                "Toolchain Information:\n\((options.toolchain == nil ? Command.findInPath(withName: "swift") : Command(executablePath: .init(options.toolchain!)))?.addArgument("--version").waitForOutput().stdout ?? "Unknown")"
         }
     }
 
@@ -172,21 +175,23 @@ extension Peregrine {
             }
 
             try await handle {
-                print("=== PEREGRINE - COUNTING TESTS ===", .CyanBold)
-                let tests = try await PeregrineRunner(options: TestOptions(
-                    toolchainPath: options.toolchain,
-                    packagePath: options.path,
-                    plaintextOutput: options.plaintextOutput
-                ), logger: logger).listTests()
+                print("=== PEREGRINE - COUNTING TESTS ===", .cyanBold)
+                let tests = try await PeregrineRunner(
+                    options: TestOptions(
+                        toolchainPath: options.toolchain,
+                        packagePath: options.path,
+                        plaintextOutput: options.plaintextOutput
+                    ), logger: logger
+                ).listTests()
                 let testsBySuite = Dictionary(grouping: tests, by: \.suite)
-                print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .GreenBold)
+                print("Found \(tests.count) total tests across \(testsBySuite.keys.count) Suites", .greenBold)
                 if groupBySuite {
-                    print(String(repeating: "-", count: 50), .GreenBold)
+                    print(String(repeating: "-", count: 50), .greenBold)
                     print(
                         testsBySuite.sorted(by: { $0.value.count > $1.value.count })
                             .map { "\($0.key): \($0.value.count)" }
                             .joined(separator: "\n"),
-                        .GreenBold
+                        .greenBold
                     )
                 }
             }
@@ -200,24 +205,25 @@ extension Peregrine {
 private func handle(_ peregrineOperation: () async throws -> Void) async throws {
     do {
         try await peregrineOperation()
-    } catch let TestParseError.unexpectedLineFormat(errDetail) {
-        print("""
-        peregrine ran into an issue when running: \(errDetail)
+    } catch TestParseError.unexpectedLineFormat(let errDetail) {
+        print(
+            """
+            peregrine ran into an issue when running: \(errDetail)
 
-        Please submit a bug report at https://github.com/GNMoseke/peregrine/issues
-        Please include the logs found at /tmp/peregrine.log
-        """, .RedBold)
+            Please submit a bug report at https://github.com/GNMoseke/peregrine/issues
+            Please include the logs found at /tmp/peregrine.log
+            """, .redBold)
         tputCnorm()
         Foundation.exit(4)
     } catch TestParseError.buildFailure {
         tputCnorm()
         Foundation.exit(1)
     } catch TestParseError.notSwiftPackage {
-        print("Given path does not appear to be a swift package - no Package.swift file found.", .RedBold)
+        print("Given path does not appear to be a swift package - no Package.swift file found.", .redBold)
         tputCnorm()
         Foundation.exit(2)
     } catch PeregrineError.couldNotFindSwiftExecutable {
-        print("peregrine could not find the swift executable in your path or at the given toolchain", .RedBold)
+        print("peregrine could not find the swift executable in your path or at the given toolchain", .redBold)
         tputCnorm()
         Foundation.exit(3)
     }
@@ -229,7 +235,7 @@ private func tputCnorm() {
     } catch {
         print(
             "Peregrine ran into an error cleaning up. If your cursor is hidden, run `tput cnorm`.",
-            .RedBold
+            .redBold
         )
     }
 }

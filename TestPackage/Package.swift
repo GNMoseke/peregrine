@@ -8,6 +8,6 @@ let package = Package(
     targets: [
         .testTarget(
             name: "TestPackageTests"
-        ),
+        )
     ]
 )
